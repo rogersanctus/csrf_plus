@@ -7,16 +7,9 @@ defmodule CsrfPlus.CsrfPlusTest do
   def build_conn(method, path) do
     conn = conn(method, path)
 
-    csrf_plus = %{salt: "$altIsG0od!SaLt1sN1C3$"}
-
-    private =
-      conn.private
-      |> Map.put(:csrf_plus, csrf_plus)
-
     %{
       conn
-      | secret_key_base: "aReallyLongSecretKeyBase!YeahItsWide.",
-        private: private
+      | secret_key_base: "aReallyLongSecretKeyBase!YeahItsWide."
     }
   end
 
