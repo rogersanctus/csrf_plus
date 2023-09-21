@@ -23,11 +23,10 @@ defmodule CsrfPlus.CsrfPlusTest do
     test "if the correct store is called when the otp_app is set" do
       Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
       Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
-      config = CsrfPlus.init(otp_app: :test_app, allowed_origins: ["http://localhost:5050"])
+      config = CsrfPlus.init(otp_app: :test_app)
 
       conn =
         build_conn(:post, "/")
-        |> Plug.Conn.put_req_header("origin", "http://localhost:5050")
         |> Plug.Conn.put_req_header("x-csrf-token", CsrfPlus.OkStoreMock.the_token())
 
       new_conn = CsrfPlus.call(conn, config)
