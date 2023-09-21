@@ -2,18 +2,6 @@ defmodule CsrfPlus do
   @moduledoc false
   @behaviour Plug
 
-  defmacro __using__(opts) do
-    quote do
-      unquote(config(opts))
-    end
-  end
-
-  defp config(opts) do
-    quote do
-      @otp_app unquote(opts)[:otp_app] || raise("CsrfPlus expects :otp_app to be set")
-    end
-  end
-
   alias CsrfPlus.UserAccessInfo
   require Logger
 
@@ -26,14 +14,21 @@ defmodule CsrfPlus do
   import Plug.Conn
 
   def init(opts \\ []) do
-    csrf_key = Keyword.get(opts, :csrf_key, @default_csrf_key)
-    allowed_origins = Keyword.get(opts, :allowed_origins, [])
+    otp_app = Keyword.get(opts, :otp_app)
 
-    %{
-      csrf_key: csrf_key,
-      allowed_origins: allowed_origins,
-      allowed_methods: @non_csrf_request_methods
-    }
+    if otp_app == nil do
+      raise "CsrfPlus requires :otp_app to be set"
+    else
+      csrf_key = Keyword.get(opts, :csrf_key, @default_csrf_key)
+      allowed_origins = Keyword.get(opts, :allowed_origins, [])
+
+      %{
+        otp_app: otp_app,
+        csrf_key: csrf_key,
+        allowed_origins: allowed_origins,
+        allowed_methods: @non_csrf_request_methods
+      }
+    end
   end
 
   def call(%Plug.Conn{} = conn, %{allowed_methods: allowed_methods} = opts) do
@@ -130,27 +125,55 @@ defmodule CsrfPlus do
   end
 
   defp check_token(%Plug.Conn{} = conn, opts) do
-    store = Application.get_env(opts.otp_app, :store, Recaptcha.Csrf.Store.BdStore)
+    config = Application.get_env(opts.otp_app, CsrfPlus, nil)
+    store = Keyword.get(config, :store, nil)
 
+    check_token_store(conn, store)
+  end
+
+  defp check_token_store(conn, nil) do
+    Logger.debug("CsrfPlus: No token store configured")
+
+    conn
+    |> send_resp(:unauthorized, Jason.encode!(%{error: "No token store configured"}))
+    |> halt()
+  end
+
+  defp check_token_store(conn, store) do
     user_info = get_user_info(conn)
 
     header_token = get_req_header(conn, "x-csrf-token")
 
+    header_token = if Enum.empty?(header_token), do: nil, else: hd(header_token)
+
     store_token = store.get_token(user_info)
 
-    if header_token == store_token do
-      conn
-    else
-      Logger.debug("Token mismatch: #{inspect(header_token)} != #{inspect(store_token)}")
+    cond do
+      header_token == nil ->
+        conn
+        |> send_resp(:unauthorized, Jason.encode!(%{error: "Missing token header"}))
+        |> halt()
 
-      conn
-      |> send_resp(:unauthorized, Jason.encode!(%{error: "Invalid token"}))
+      store_token == nil ->
+        conn
+        |> send_resp(:unauthorized, Jason.encode!(%{error: "Token is not set in the store"}))
+        |> halt()
+
+      header_token == store_token ->
+        conn
+
+      true ->
+        Logger.debug("Token mismatch: #{inspect(header_token)} != #{inspect(store_token)}")
+
+        conn
+        |> send_resp(:unauthorized, Jason.encode!(%{error: "Invalid token"}))
+        |> halt()
     end
   end
 
   defp get_conn_ip(%Plug.Conn{remote_ip: remote_ip, req_headers: req_headers}) do
-    [x_real_ip | _] = List.keyfind(req_headers, "x-real-ip", 0)
-    [x_forwarded_for | _] = List.keyfind(req_headers, "x-forwarded-for", 0)
+    [x_real_ip | _] = List.keyfind(req_headers, "x-real-ip", 0, [nil])
+    [x_forwarded_for | _] = List.keyfind(req_headers, "x-forwarded-for", 0, [nil])
 
     case {remote_ip, x_real_ip, x_forwarded_for} do
       {nil, nil, nil} ->
@@ -168,9 +191,13 @@ defmodule CsrfPlus do
   end
 
   defp get_conn_user_agent(%Plug.Conn{} = conn) do
-    conn
-    |> get_req_header("user-agent")
-    |> hd
+    user_agent = get_req_header(conn, "user-agent")
+
+    if Enum.empty?(user_agent) do
+      nil
+    else
+      hd(user_agent)
+    end
   end
 
   defp check_origins(
@@ -184,7 +211,7 @@ defmodule CsrfPlus do
         |> send_resp(:unauthorized, Jason.encode!(%{error: "Missing Origin header"}))
         |> halt()
 
-      origin ->
+      {_, origin} ->
         allowed_origins
         |> Enum.any?(fn allowed_origin -> check_origin(origin, allowed_origin) end)
         |> check_origins_result(conn)
@@ -202,6 +229,7 @@ defmodule CsrfPlus do
   end
 
   defp check_origin(origin, allowed_origin) when is_binary(allowed_origin) do
+    Logger.debug("Checking origin: #{inspect(origin)} == #{inspect(allowed_origin)}")
     origin == allowed_origin
   end
 

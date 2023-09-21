@@ -13,6 +13,29 @@ defmodule CsrfPlus.CsrfPlusTest do
     }
   end
 
+  describe "CSRF Plug configuration" do
+    test "if otp_app is set and returned as in the returning config map" do
+      config = CsrfPlus.init(otp_app: :test_app)
+
+      assert match?(%{otp_app: :test_app}, config)
+    end
+
+    test "if the correct store is called when the otp_app is set" do
+      Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+      Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
+      config = CsrfPlus.init(otp_app: :test_app, allowed_origins: ["http://localhost:5050"])
+
+      conn =
+        build_conn(:post, "/")
+        |> Plug.Conn.put_req_header("origin", "http://localhost:5050")
+        |> Plug.Conn.put_req_header("x-csrf-token", CsrfPlus.OkStoreMock.the_token())
+
+      new_conn = CsrfPlus.call(conn, config)
+      IO.puts("New conn: #{inspect(new_conn)}")
+      assert not new_conn.halted
+    end
+  end
+
   describe "CSRF Plug on requrests" do
     test "if it can generate a token and store it for checking" do
       conn = build_conn(:get, "/")
