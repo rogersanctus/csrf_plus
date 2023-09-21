@@ -29,12 +29,8 @@ defmodule CsrfPlus do
     end
   end
 
-  def call(%Plug.Conn{} = conn, %{allowed_methods: allowed_methods} = opts) do
-    if conn.method in allowed_methods do
-      conn
-    else
-      try_do_checks(conn, opts)
-    end
+  def call(%Plug.Conn{} = conn, opts) do
+    try_do_checks(conn, opts)
   end
 
   def get_user_info(conn) do
@@ -79,8 +75,12 @@ defmodule CsrfPlus do
     conn
   end
 
-  defp try_do_checks(%Plug.Conn{} = conn, opts) do
-    try_check_token(conn, opts)
+  defp try_do_checks(%Plug.Conn{} = conn, %{allowed_methods: allowed_methods} = opts) do
+    if conn.method in allowed_methods do
+      conn
+    else
+      try_check_token(conn, opts)
+    end
   end
 
   defp try_check_token(%Plug.Conn{halted: true} = conn, _opts) do
