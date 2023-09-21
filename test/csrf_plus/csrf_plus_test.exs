@@ -30,7 +30,7 @@ defmodule CsrfPlus.CsrfPlusTest do
         |> Plug.Conn.put_req_header("x-csrf-token", CsrfPlus.OkStoreMock.the_token())
 
       new_conn = CsrfPlus.call(conn, config)
-      assert not new_conn.halted
+      refute new_conn.halted
     end
 
     test "if when an allowed method is set the Conn is not halted" do
@@ -41,7 +41,7 @@ defmodule CsrfPlus.CsrfPlusTest do
       conn = build_conn(:patch, "/")
       new_conn = CsrfPlus.call(conn, config)
 
-      assert not new_conn.halted
+      refute new_conn.halted
     end
   end
 
@@ -51,8 +51,8 @@ defmodule CsrfPlus.CsrfPlusTest do
 
       {token, signed} = CsrfPlus.generate_token(conn)
 
-      assert !is_nil(token)
-      assert !is_nil(signed)
+      refute is_nil(token)
+      refute is_nil(signed)
     end
 
     test "if it fails to generate a token when the conn has no secret key" do
