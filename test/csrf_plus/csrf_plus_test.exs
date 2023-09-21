@@ -46,7 +46,7 @@ defmodule CsrfPlus.CsrfPlusTest do
   end
 
   describe "CSRF Plug on requrests" do
-    test "if it can generate a token and store it for checking" do
+    test "if it can generate a token" do
       conn = build_conn(:get, "/")
 
       {token, signed} = CsrfPlus.generate_token(conn)
