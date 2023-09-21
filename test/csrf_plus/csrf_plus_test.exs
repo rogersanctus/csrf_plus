@@ -57,13 +57,8 @@ defmodule CsrfPlus.CsrfPlusTest do
 
     test "if a generated token is signed and verifyable" do
       conn = build_conn(:get, "/")
-
       {token, signed} = CsrfPlus.generate_token(conn)
-      IO.puts("Generated token: #{inspect(token)}")
-      IO.puts("Signed token: #{inspect(signed)}")
-
       result = CsrfPlus.verify_token(conn, signed)
-      IO.puts("Result: #{inspect(result)}")
 
       assert match?({:ok, ^token}, result)
     end
