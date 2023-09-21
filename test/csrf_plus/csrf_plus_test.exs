@@ -30,7 +30,17 @@ defmodule CsrfPlus.CsrfPlusTest do
         |> Plug.Conn.put_req_header("x-csrf-token", CsrfPlus.OkStoreMock.the_token())
 
       new_conn = CsrfPlus.call(conn, config)
-      IO.puts("New conn: #{inspect(new_conn)}")
+      assert not new_conn.halted
+    end
+
+    test "if when an allowed method is set the Conn is not halted" do
+      Application.put_env(:test_app, CsrfPlis, store: CsrfPlus.StoreMock)
+      Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+      config = CsrfPlus.init(otp_app: :test_app, allowed_methods: ["PATCH"])
+
+      conn = build_conn(:patch, "/")
+      new_conn = CsrfPlus.call(conn, config)
+
       assert not new_conn.halted
     end
   end

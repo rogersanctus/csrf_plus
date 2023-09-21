@@ -21,10 +21,12 @@ defmodule CsrfPlus do
     else
       csrf_key = Keyword.get(opts, :csrf_key, @default_csrf_key)
 
+      allowed_methods = Keyword.get(opts, :allowed_methods, @non_csrf_request_methods)
+
       %{
         otp_app: otp_app,
         csrf_key: csrf_key,
-        allowed_methods: @non_csrf_request_methods
+        allowed_methods: allowed_methods
       }
     end
   end
