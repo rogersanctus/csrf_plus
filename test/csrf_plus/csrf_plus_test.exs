@@ -55,6 +55,12 @@ defmodule CsrfPlus.CsrfPlusTest do
       assert !is_nil(signed)
     end
 
+    test "if it fails to generate a token when the conn has no secret key" do
+      conn = conn(:get, "/")
+
+      assert_raise RuntimeError, fn -> CsrfPlus.generate_token(conn) end
+    end
+
     test "if a generated token is signed and verifyable" do
       conn = build_conn(:get, "/")
       {token, signed} = CsrfPlus.generate_token(conn)
