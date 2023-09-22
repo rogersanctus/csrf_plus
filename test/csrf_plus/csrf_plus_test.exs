@@ -46,7 +46,7 @@ defmodule CsrfPlus.CsrfPlusTest do
     end
 
     test "if when an allowed method is set the Conn is not halted" do
-      Application.put_env(:test_app, CsrfPlis, store: CsrfPlus.StoreMock)
+      Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
       Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
       config = CsrfPlus.init(otp_app: :test_app, allowed_methods: ["PATCH"])
 
