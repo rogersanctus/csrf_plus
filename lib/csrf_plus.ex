@@ -104,16 +104,8 @@ defmodule CsrfPlus do
     if conn.method in allowed_methods do
       conn
     else
-      try_check_token(conn, opts)
+      check_token(conn, opts)
     end
-  end
-
-  defp try_check_token(%Plug.Conn{halted: true} = conn, _opts) do
-    conn
-  end
-
-  defp try_check_token(%Plug.Conn{} = conn, opts) do
-    check_token(conn, opts)
   end
 
   defp check_token(%Plug.Conn{} = conn, opts) do
