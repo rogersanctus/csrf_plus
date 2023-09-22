@@ -87,10 +87,12 @@ defmodule CsrfPlus do
   end
 
   defp get_opts(%Plug.Conn{} = conn) do
-    opts_fun = Map.get(conn.private, :plug_csrf_plus_config, fn -> nil end)
+    opts_fun = Map.get(conn.private, :plug_csrf_plus_config, fn -> %{} end)
 
     if is_function(opts_fun) do
       opts_fun.()
+    else
+      %{}
     end
   end
 

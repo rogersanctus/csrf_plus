@@ -117,5 +117,16 @@ defmodule CsrfPlus.CsrfPlusTest do
       assert conn_token == token
       assert match?({:ok, ^token}, result)
     end
+
+    test "if it fails to put a token into the session when CsrfPlus is not plugged yet" do
+      Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+
+      conn =
+        build_session_conn(:get, "/")
+        |> Plug.Conn.fetch_session()
+
+      {token, _} = CsrfPlus.generate_token(conn)
+      assert_raise RuntimeError, fn -> CsrfPlus.put_session_token(conn, token) end
+    end
   end
 end
