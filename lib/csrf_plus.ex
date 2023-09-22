@@ -31,10 +31,16 @@ defmodule CsrfPlus do
     end
   end
 
+  def call(%Plug.Conn{halted: true} = conn, _opts) do
+    conn
+  end
+
   def call(%Plug.Conn{} = conn, opts) do
+    allowed_method? = allowed_method?(conn, opts)
+
     conn
     |> put_private(:plug_csrf_plus_config, fn -> opts end)
-    |> try_do_checks(opts)
+    |> check_token(allowed_method?, opts)
   end
 
   def get_user_info(conn) do
@@ -96,20 +102,19 @@ defmodule CsrfPlus do
     end
   end
 
-  defp try_do_checks(%Plug.Conn{halted: true} = conn, _opts) do
+  defp allowed_method?(
+         %Plug.Conn{method: method},
+         %{allowed_methods: allowed_methods} = _opts
+       ) do
+    method in allowed_methods
+  end
+
+  def check_token(%Plug.Conn{} = conn, true = _allowed_method?, _opts) do
     conn
   end
 
-  defp try_do_checks(%Plug.Conn{} = conn, %{allowed_methods: allowed_methods} = opts) do
-    if conn.method in allowed_methods do
-      conn
-    else
-      check_token(conn, opts)
-    end
-  end
-
-  defp check_token(%Plug.Conn{} = conn, opts) do
-    config = Application.get_env(opts.otp_app, CsrfPlus, nil)
+  def check_token(%Plug.Conn{} = conn, false = _allowed_method?, opts) do
+    config = Application.get_env(opts.otp_app, CsrfPlus, [])
     store = Keyword.get(config, :store, nil)
 
     check_token_store(conn, store)
