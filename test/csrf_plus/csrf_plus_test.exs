@@ -9,8 +9,18 @@ defmodule CsrfPlus.CsrfPlusTest do
 
     %{
       conn
-      | secret_key_base: "aReallyLongSecretKeyBase!YeahItsWide."
+      | # Generated with :crypto.strong_rand_bytes(64) |> Base.encode64()
+        secret_key_base:
+          "96uqV4XL/GpDMgDDc7/G2p6AO1PM6FqI5b4JnyUh95F2bUtGDA5Uee1eHd+vaxmB6ilrZfU6ZglBJI6Wo7tW9A=="
     }
+  end
+
+  def build_session_conn(method, path) do
+    config =
+      Plug.Session.init(key: "_session_test", store: :cookie, signing_salt: "$salt4meSalTforU&")
+
+    build_conn(method, path)
+    |> Plug.Session.call(config)
   end
 
   describe "CSRF Plug configuration" do
@@ -26,7 +36,9 @@ defmodule CsrfPlus.CsrfPlusTest do
       config = CsrfPlus.init(otp_app: :test_app)
 
       conn =
-        build_conn(:post, "/")
+        build_session_conn(:post, "/")
+        |> Plug.Conn.fetch_session()
+        |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> Plug.Conn.put_req_header("x-csrf-token", CsrfPlus.OkStoreMock.the_token())
 
       new_conn = CsrfPlus.call(conn, config)
@@ -83,6 +95,27 @@ defmodule CsrfPlus.CsrfPlusTest do
       any_token = "any token"
       result = CsrfPlus.verify_token(conn, any_token)
       assert match?({:error, "no secret key provided in the Plug conn"}, result)
+    end
+  end
+
+  describe "CsrfPlus validations" do
+    test "if it can put a token into the session" do
+      Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+      plug_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+
+      conn =
+        build_session_conn(:get, "/")
+        |> Plug.Conn.fetch_session()
+        |> CsrfPlus.call(plug_config)
+
+      {token, signed} = CsrfPlus.generate_token(conn)
+      new_conn = CsrfPlus.put_session_token(conn, token)
+
+      conn_token = Plug.Conn.get_session(new_conn, :csrf_token)
+      result = CsrfPlus.verify_token(new_conn, signed)
+
+      assert conn_token == token
+      assert match?({:ok, ^token}, result)
     end
   end
 end

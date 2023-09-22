@@ -32,7 +32,9 @@ defmodule CsrfPlus do
   end
 
   def call(%Plug.Conn{} = conn, opts) do
-    try_do_checks(conn, opts)
+    conn
+    |> put_private(:plug_csrf_plus_config, fn -> opts end)
+    |> try_do_checks(opts)
   end
 
   def get_user_info(conn) do
@@ -73,6 +75,25 @@ defmodule CsrfPlus do
     end
   end
 
+  def put_session_token(%Plug.Conn{} = conn, token) do
+    opts = get_opts(conn)
+    csrf_key = Map.get(opts, :csrf_key, nil)
+
+    if csrf_key == nil do
+      raise "CsrfPlus.put_session_token/2 must be called after CsrfPlus is plugged"
+    else
+      put_session(conn, csrf_key, token)
+    end
+  end
+
+  defp get_opts(%Plug.Conn{} = conn) do
+    opts_fun = Map.get(conn.private, :plug_csrf_plus_config, fn -> nil end)
+
+    if is_function(opts_fun) do
+      opts_fun.()
+    end
+  end
+
   defp try_do_checks(%Plug.Conn{halted: true} = conn, _opts) do
     conn
   end
@@ -109,15 +130,20 @@ defmodule CsrfPlus do
   end
 
   defp check_token_store(conn, store) do
-    user_info = get_user_info(conn)
+    access_id = get_session(conn, :access_id)
 
     header_token = get_req_header(conn, "x-csrf-token")
 
     header_token = if Enum.empty?(header_token), do: nil, else: hd(header_token)
 
-    store_token = store.get_token(user_info)
+    store_token = store.get_token(access_id)
 
     cond do
+      is_nil(access_id) ->
+        conn
+        |> send_resp(:unauthorized, Jason.encode!(%{error: "Missing access_id in the session"}))
+        |> halt()
+
       header_token == nil ->
         conn
         |> send_resp(:unauthorized, Jason.encode!(%{error: "Missing token header"}))
