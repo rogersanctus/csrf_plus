@@ -4,8 +4,8 @@ defmodule CsrfPlus.CsrfPlusTest do
   import Plug.Test
   alias CsrfPlus
 
-  def build_conn(method, path) do
-    conn = conn(method, path)
+  def build_conn(method) do
+    conn = conn(method, "/")
 
     %{
       conn
@@ -15,12 +15,37 @@ defmodule CsrfPlus.CsrfPlusTest do
     }
   end
 
-  def build_session_conn(method, path) do
+  def build_session_conn(method) do
     config =
       Plug.Session.init(key: "_session_test", store: :cookie, signing_salt: "$salt4meSalTforU&")
 
-    build_conn(method, path)
+    build_conn(method)
     |> Plug.Session.call(config)
+  end
+
+  def build_session_req_conn(method) do
+    csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+
+    resp_conn =
+      :get
+      |> build_session_conn()
+      |> Plug.Conn.fetch_session()
+      |> CsrfPlus.call(csrf_config)
+
+    {token, signed} = CsrfPlus.generate_token(resp_conn)
+
+    resp_conn =
+      resp_conn
+      |> CsrfPlus.put_session_token(token)
+      |> Plug.Conn.send_resp(:no_content, "")
+
+    {_, cookie} = List.keyfind(resp_conn.resp_headers, "set-cookie", 0, {"set-cookie", nil})
+
+    method
+    |> build_session_conn()
+    |> Plug.Conn.put_req_header("cookie", cookie)
+    |> Plug.Conn.put_req_header("x-csrf-token", signed)
+    |> Plug.Conn.fetch_session()
   end
 
   describe "CSRF Plug configuration" do
@@ -30,19 +55,23 @@ defmodule CsrfPlus.CsrfPlusTest do
       assert match?(%{otp_app: :test_app}, config)
     end
 
-    test "if the correct store is called when the otp_app is set" do
-      Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+    test "if the correct store is set and called when CsrfPlus is plugged" do
+      Mox.stub(CsrfPlus.StoreMock, :get_token, fn _ ->
+        send(self(), :store_called)
+      end)
+
       Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
       config = CsrfPlus.init(otp_app: :test_app)
 
       conn =
-        build_session_conn(:post, "/")
+        build_session_conn(:post)
         |> Plug.Conn.fetch_session()
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> Plug.Conn.put_req_header("x-csrf-token", CsrfPlus.OkStoreMock.the_token())
 
-      new_conn = CsrfPlus.call(conn, config)
-      refute new_conn.halted
+      CsrfPlus.call(conn, config)
+
+      assert_receive :store_called
     end
 
     test "if when an allowed method is set the Conn is not halted" do
@@ -50,7 +79,7 @@ defmodule CsrfPlus.CsrfPlusTest do
       Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
       config = CsrfPlus.init(otp_app: :test_app, allowed_methods: ["PATCH"])
 
-      conn = build_conn(:patch, "/")
+      conn = build_conn(:patch)
       new_conn = CsrfPlus.call(conn, config)
 
       refute new_conn.halted
@@ -59,7 +88,7 @@ defmodule CsrfPlus.CsrfPlusTest do
 
   describe "CSRF tokens generation" do
     test "if it can generate a token" do
-      conn = build_conn(:get, "/")
+      conn = build_conn(:get)
 
       {token, signed} = CsrfPlus.generate_token(conn)
 
@@ -74,7 +103,7 @@ defmodule CsrfPlus.CsrfPlusTest do
     end
 
     test "if a generated token is signed and verifyable" do
-      conn = build_conn(:get, "/")
+      conn = build_conn(:get)
       {token, signed} = CsrfPlus.generate_token(conn)
       result = CsrfPlus.verify_token(conn, signed)
 
@@ -82,7 +111,7 @@ defmodule CsrfPlus.CsrfPlusTest do
     end
 
     test "if verifying a token fails with invalid token when token is invalid" do
-      conn = build_conn(:get, "/")
+      conn = build_conn(:get)
 
       wrong_token = "wrong token"
       result = CsrfPlus.verify_token(conn, wrong_token)
@@ -104,7 +133,7 @@ defmodule CsrfPlus.CsrfPlusTest do
       plug_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
 
       conn =
-        build_session_conn(:get, "/")
+        build_session_conn(:get)
         |> Plug.Conn.fetch_session()
         |> CsrfPlus.call(plug_config)
 
@@ -122,11 +151,22 @@ defmodule CsrfPlus.CsrfPlusTest do
       Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
 
       conn =
-        build_session_conn(:get, "/")
+        build_session_conn(:get)
         |> Plug.Conn.fetch_session()
 
       {token, _} = CsrfPlus.generate_token(conn)
       assert_raise RuntimeError, fn -> CsrfPlus.put_session_token(conn, token) end
+    end
+
+    test "if the token validation fails when there is no session_id set in the request session" do
+      Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+      csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+      conn = build_session_req_conn(:post)
+
+      conn =
+        CsrfPlus.call(conn, csrf_config)
+
+      assert conn.halted
     end
   end
 end
