@@ -129,7 +129,10 @@ defmodule CsrfPlus do
 
       header_token == nil ->
         conn
-        |> send_resp(:unauthorized, Jason.encode!(%{error: "Missing token header"}))
+        |> send_resp(
+          :unauthorized,
+          Jason.encode!(%{error: "Missing token in the request header"})
+        )
         |> halt()
 
       true ->
@@ -156,7 +159,7 @@ defmodule CsrfPlus do
 
     cond do
       session_token == nil ->
-        send_resp(conn, :unauthorized, Jason.encode!(%{error: "Missing session token"}))
+        send_resp(conn, :unauthorized, Jason.encode!(%{error: "Missing token in the session"}))
         |> halt()
 
       session_token != store_token ->
