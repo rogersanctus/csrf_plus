@@ -56,6 +56,13 @@ defmodule CsrfPlus.CsrfPlusTest do
     |> Plug.Conn.fetch_session()
   end
 
+  # Clean up CsrfPlus configuration after each test
+  setup do
+    on_exit(fn ->
+      Application.delete_env(:test_app, CsrfPlus)
+    end)
+  end
+
   describe "CSRF Plug configuration" do
     test "if otp_app is set and returned as in the returning config map" do
       config = CsrfPlus.init(otp_app: :test_app)
@@ -200,6 +207,23 @@ defmodule CsrfPlus.CsrfPlusTest do
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> CsrfPlus.call(csrf_config)
 
+      assert conn.halted
+    end
+
+    test "if the validation fails when there is no token in the connection session" do
+      Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+      Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
+      csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+
+      conn =
+        :post
+        |> build_session_conn()
+        |> Plug.Conn.fetch_session()
+        |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
+        |> Plug.Conn.put_req_header("x-csrf-token", CsrfPlus.OkStoreMock.the_token())
+        |> CsrfPlus.call(csrf_config)
+
+      IO.puts("conn: #{inspect(conn)}")
       assert conn.halted
     end
   end
