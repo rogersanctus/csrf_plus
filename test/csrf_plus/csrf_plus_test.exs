@@ -189,5 +189,18 @@ defmodule CsrfPlus.CsrfPlusTest do
 
       assert conn.halted
     end
+
+    test "if the validation fails when no token store is set" do
+      Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+      csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+      conn = build_session_req_conn(:post, true)
+
+      conn =
+        conn
+        |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
+        |> CsrfPlus.call(csrf_config)
+
+      assert conn.halted
+    end
   end
 end
