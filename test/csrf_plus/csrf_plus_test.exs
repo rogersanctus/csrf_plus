@@ -23,7 +23,7 @@ defmodule CsrfPlus.CsrfPlusTest do
     |> Plug.Session.call(config)
   end
 
-  def build_session_req_conn(method) do
+  def build_session_req_conn(method, put_header_token? \\ false) do
     csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
 
     resp_conn =
@@ -41,10 +41,18 @@ defmodule CsrfPlus.CsrfPlusTest do
 
     {_, cookie} = List.keyfind(resp_conn.resp_headers, "set-cookie", 0, {"set-cookie", nil})
 
+    put_header_token = fn conn ->
+      if put_header_token? do
+        Plug.Conn.put_req_header(conn, "x-csrf-token", signed)
+      else
+        conn
+      end
+    end
+
     method
     |> build_session_conn()
     |> Plug.Conn.put_req_header("cookie", cookie)
-    |> Plug.Conn.put_req_header("x-csrf-token", signed)
+    |> put_header_token.()
     |> Plug.Conn.fetch_session()
   end
 
@@ -165,6 +173,19 @@ defmodule CsrfPlus.CsrfPlusTest do
 
       conn =
         CsrfPlus.call(conn, csrf_config)
+
+      assert conn.halted
+    end
+
+    test "if the validation fails when there is no token in the request headers" do
+      Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+      csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+      conn = build_session_req_conn(:post)
+
+      conn =
+        conn
+        |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
+        |> CsrfPlus.call(csrf_config)
 
       assert conn.halted
     end
