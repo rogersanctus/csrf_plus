@@ -133,7 +133,7 @@ defmodule CsrfPlus do
 
     header_token = get_req_header(conn, "x-csrf-token")
 
-    header_token = if Enum.empty?(header_token), do: nil, else: hd(header_token)
+    header_token = Enum.at(header_token, 0)
 
     store_token = store.get_token(access_id)
 
