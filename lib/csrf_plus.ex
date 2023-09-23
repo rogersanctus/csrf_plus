@@ -114,28 +114,12 @@ defmodule CsrfPlus do
   end
 
   def check_token(%Plug.Conn{} = conn, false = _allowed_method?, opts) do
-    config = Application.get_env(opts.otp_app, CsrfPlus, [])
-    store = Keyword.get(config, :store, nil)
-
-    check_token_store(conn, store)
-  end
-
-  defp check_token_store(conn, nil) do
-    Logger.debug("CsrfPlus: No token store configured")
-
-    conn
-    |> send_resp(:unauthorized, Jason.encode!(%{error: "No token store configured"}))
-    |> halt()
-  end
-
-  defp check_token_store(conn, store) do
     access_id = get_session(conn, :access_id)
 
-    header_token = get_req_header(conn, "x-csrf-token")
-
-    header_token = Enum.at(header_token, 0)
-
-    store_token = store.get_token(access_id)
+    header_token =
+      conn
+      |> get_req_header("x-csrf-token")
+      |> Enum.at(0)
 
     cond do
       is_nil(access_id) ->
@@ -148,21 +132,66 @@ defmodule CsrfPlus do
         |> send_resp(:unauthorized, Jason.encode!(%{error: "Missing token header"}))
         |> halt()
 
-      store_token == nil ->
-        conn
-        |> send_resp(:unauthorized, Jason.encode!(%{error: "Token is not set in the store"}))
+      true ->
+        config = Application.get_env(opts.otp_app, CsrfPlus, [])
+        store = Keyword.get(config, :store, nil)
+
+        check_token_store(conn, store, {access_id, header_token})
+    end
+  end
+
+  defp check_token_store(conn, nil, _to_check) do
+    Logger.debug("CsrfPlus: No token store configured")
+
+    conn
+    |> send_resp(:unauthorized, Jason.encode!(%{error: "No token store configured"}))
+    |> halt()
+  end
+
+  defp check_token_store(conn, store, {access_id, header_token}) do
+    opts = get_opts(conn)
+    csrf_key = Map.get(opts, :csrf_key, nil)
+    store_token = store.get_token(access_id)
+    session_token = get_session(conn, csrf_key)
+
+    cond do
+      session_token == nil ->
+        send_resp(conn, :unauthorized, Jason.encode!(%{error: "Missing session token"}))
         |> halt()
 
-      header_token == store_token ->
-        conn
+      session_token != store_token ->
+        Logger.debug(
+          "Token mismatch session:#{inspect(session_token)} != store:#{inspect(store_token)}"
+        )
+
+        send_resp(conn, :unauthorized, Jason.encode!(%{error: "Invalid token"}))
+        |> halt()
 
       true ->
-        Logger.debug("Token mismatch: #{inspect(header_token)} != #{inspect(store_token)}")
-
         conn
-        |> send_resp(:unauthorized, Jason.encode!(%{error: "Invalid token"}))
-        |> halt()
+        |> verify_token(header_token)
+        |> check_token_store_verified(conn, store_token)
     end
+  end
+
+  defp check_token_store_verified({:ok, verified_token}, conn, store_token) do
+    if verified_token != store_token do
+      Logger.debug(
+        "Token mismatch: verified_token:#{inspect(verified_token)} != store_token:#{inspect(store_token)}"
+      )
+
+      send_resp(conn, :unauthorized, Jason.encode!(%{error: "Invalid token"}))
+      |> halt()
+    else
+      conn
+    end
+  end
+
+  defp check_token_store_verified({:error, error}, conn, _store_token) do
+    Logger.debug("Token validation error: #{inspect(error)}")
+
+    send_resp(conn, :unauthorized, Jason.encode!(%{error: error}))
+    |> halt()
   end
 
   defp get_conn_ip(%Plug.Conn{remote_ip: remote_ip, req_headers: req_headers}) do
