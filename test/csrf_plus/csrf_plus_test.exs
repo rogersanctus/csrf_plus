@@ -244,5 +244,20 @@ defmodule CsrfPlus.CsrfPlusTest do
 
       assert conn.halted
     end
+
+    test "if the validation fails when everything is ok but the token in the header is invalid" do
+      Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+      Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
+      csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+
+      conn =
+        :post
+        |> build_session_req_conn()
+        |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
+        |> Plug.Conn.put_req_header("x-csrf-token", "wrong token")
+        |> CsrfPlus.call(csrf_config)
+
+      assert conn.halted
+    end
   end
 end
