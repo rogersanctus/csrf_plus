@@ -259,5 +259,20 @@ defmodule CsrfPlus.CsrfPlusTest do
 
       assert conn.halted
     end
+
+    test "if the validation fails when the header token is valid but does not match the session token or the store token" do
+      Mox.stub(CsrfPlus.StoreMock, :get_token, fn _ -> "different token" end)
+      Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
+      csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+
+      conn =
+        :post
+        |> build_session_req_conn(true)
+        |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
+        |> Plug.Conn.put_session(:csrf_token, "different token")
+        |> CsrfPlus.call(csrf_config)
+
+      assert conn.halted
+    end
   end
 end
