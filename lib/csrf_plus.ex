@@ -159,6 +159,8 @@ defmodule CsrfPlus do
 
     cond do
       session_token == nil ->
+        Logger.debug("Missing token in the request session")
+
         send_resp(conn, :unauthorized, Jason.encode!(%{error: "Missing token in the session"}))
         |> halt()
 
