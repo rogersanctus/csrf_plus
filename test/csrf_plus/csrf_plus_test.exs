@@ -223,7 +223,6 @@ defmodule CsrfPlus.CsrfPlusTest do
         |> Plug.Conn.put_req_header("x-csrf-token", CsrfPlus.OkStoreMock.the_token())
         |> CsrfPlus.call(csrf_config)
 
-      IO.puts("conn: #{inspect(conn)}")
       assert conn.halted
     end
   end
