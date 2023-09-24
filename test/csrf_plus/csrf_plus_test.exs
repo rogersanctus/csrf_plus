@@ -24,7 +24,12 @@ defmodule CsrfPlus.CsrfPlusTest do
   end
 
   def build_session_req_conn(method, put_header_token? \\ false) do
-    csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+    csrf_config =
+      CsrfPlus.init(
+        otp_app: :test_app,
+        csrf_key: :csrf_token,
+        token_generation_fn: fn -> CsrfPlus.OkStoreMock.the_token() end
+      )
 
     resp_conn =
       :get
@@ -221,6 +226,20 @@ defmodule CsrfPlus.CsrfPlusTest do
         |> Plug.Conn.fetch_session()
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> Plug.Conn.put_req_header("x-csrf-token", CsrfPlus.OkStoreMock.the_token())
+        |> CsrfPlus.call(csrf_config)
+
+      assert conn.halted
+    end
+
+    test "if the validation fails when the token in the session is different from the token in the store" do
+      Mox.stub(CsrfPlus.StoreMock, :get_token, fn _ -> "different token" end)
+      Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
+      csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+
+      conn =
+        :post
+        |> build_session_req_conn(true)
+        |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> CsrfPlus.call(csrf_config)
 
       assert conn.halted
