@@ -23,10 +23,13 @@ defmodule CsrfPlus do
 
       allowed_methods = Keyword.get(opts, :allowed_methods, @non_csrf_request_methods)
 
+      token_generation_fn = Keyword.get(opts, :token_generation_fn)
+
       %{
         otp_app: otp_app,
         csrf_key: csrf_key,
-        allowed_methods: allowed_methods
+        allowed_methods: allowed_methods,
+        token_generation_fn: token_generation_fn
       }
     end
   end
@@ -58,8 +61,9 @@ defmodule CsrfPlus do
     raise "CsrfPlus requires conn.secret_key_base to be set"
   end
 
-  def generate_token(%Plug.Conn{secret_key_base: key}) do
-    token = UUID.uuid4()
+  def generate_token(%Plug.Conn{secret_key_base: key} = conn) do
+    token_generation_fn = get_token_generation_fn(conn)
+    token = token_generation_fn.()
     signed_token = Plug.Crypto.MessageVerifier.sign(token, key)
     {token, signed_token}
   end
@@ -99,6 +103,18 @@ defmodule CsrfPlus do
       opts_fun.()
     else
       %{}
+    end
+  end
+
+  defp get_token_generation_fn(%Plug.Conn{} = conn) do
+    opts = get_opts(conn)
+
+    case Map.get(opts, :token_generation_fn) do
+      nil ->
+        &UUID.uuid4/0
+
+      fun ->
+        fun
     end
   end
 
