@@ -274,5 +274,19 @@ defmodule CsrfPlus.CsrfPlusTest do
 
       assert conn.halted
     end
+
+    test "if the validation succeeds when all the tokens are valid and matches each other" do
+      Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+      Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
+      csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+
+      conn =
+        :post
+        |> build_session_req_conn(true)
+        |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
+        |> CsrfPlus.call(csrf_config)
+
+      refute conn.halted
+    end
   end
 end
