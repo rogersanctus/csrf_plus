@@ -13,9 +13,9 @@ defmodule CsrfPlus.Token do
     @no_secret_key_message "CsrfPlus.Token requires secret_key to be given when no Token module is set"
 
     def generate() do
-      Keyword.get(config(), :secret_key) || raise @no_secret_key_message
+      secret_key = Keyword.get(config(), :secret_key) || raise @no_secret_key_message
 
-      secret_key = token = UUID.uuid4()
+      token = UUID.uuid4()
 
       signed = Plug.Crypto.MessageVerifier.sign(token, secret_key)
 
