@@ -14,8 +14,13 @@ defmodule CsrfPlus.Token do
 
     def generate() do
       secret_key = Keyword.get(config(), :secret_key) || raise @no_secret_key_message
+      generation_fn = Keyword.get(config(), :token_generation_fn, &UUID.uuid4/0)
 
-      token = UUID.uuid4()
+      if !is_function(generation_fn) do
+        raise "CsrfPlus.Token requires token_generation_fn to be a function"
+      end
+
+      token = generation_fn.()
 
       signed = Plug.Crypto.MessageVerifier.sign(token, secret_key)
 
