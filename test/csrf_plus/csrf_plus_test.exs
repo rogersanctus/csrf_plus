@@ -3,6 +3,7 @@ defmodule CsrfPlus.CsrfPlusTest do
 
   import Plug.Test
   alias CsrfPlus
+  alias CsrfPlus.Fixtures
 
   def build_conn(method) do
     conn = conn(method, "/")
@@ -24,11 +25,15 @@ defmodule CsrfPlus.CsrfPlusTest do
   end
 
   def build_session_req_conn(method, put_header_token? \\ false) do
+    Fixtures.token_config_fixture()
+    config = Application.get_env(:csrf_plus, CsrfPlus.Token)
+    config = Keyword.merge(config, token_generation_fn: &CsrfPlus.OkStoreMock.the_token/0)
+    Application.put_env(:csrf_plus, CsrfPlus.Token, config)
+
     csrf_config =
       CsrfPlus.init(
         otp_app: :test_app,
-        csrf_key: :csrf_token,
-        token_generation_fn: fn -> CsrfPlus.OkStoreMock.the_token() end
+        csrf_key: :csrf_token
       )
 
     resp_conn =
@@ -37,7 +42,7 @@ defmodule CsrfPlus.CsrfPlusTest do
       |> Plug.Conn.fetch_session()
       |> CsrfPlus.call(csrf_config)
 
-    {token, signed} = CsrfPlus.generate_token(resp_conn)
+    {token, signed} = CsrfPlus.Token.generate()
 
     resp_conn =
       resp_conn
@@ -64,24 +69,17 @@ defmodule CsrfPlus.CsrfPlusTest do
   # Clean up CsrfPlus configuration after each test
   setup do
     on_exit(fn ->
-      Application.delete_env(:test_app, CsrfPlus)
+      Application.delete_env(:csrf_plus, CsrfPlus.Token)
     end)
   end
 
   describe "CSRF Plug configuration" do
-    test "if otp_app is set and returned as in the returning config map" do
-      config = CsrfPlus.init(otp_app: :test_app)
-
-      assert match?(%{otp_app: :test_app}, config)
-    end
-
     test "if the correct store is set and called when CsrfPlus is plugged" do
       Mox.stub(CsrfPlus.StoreMock, :get_token, fn _ ->
         send(self(), :store_called)
       end)
 
-      Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
-      config = CsrfPlus.init(otp_app: :test_app)
+      config = CsrfPlus.init(store: CsrfPlus.StoreMock)
 
       conn =
         build_session_conn(:post)
@@ -110,17 +108,18 @@ defmodule CsrfPlus.CsrfPlusTest do
     test "if it can put a token into the session" do
       Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
       plug_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+      Fixtures.token_config_fixture()
 
       conn =
         build_session_conn(:get)
         |> Plug.Conn.fetch_session()
         |> CsrfPlus.call(plug_config)
 
-      {token, signed} = CsrfPlus.generate_token(conn)
+      {token, signed} = CsrfPlus.Token.generate()
       new_conn = CsrfPlus.put_session_token(conn, token)
 
       conn_token = Plug.Conn.get_session(new_conn, :csrf_token)
-      result = CsrfPlus.verify_token(new_conn, signed)
+      result = CsrfPlus.Token.verify(signed)
 
       assert conn_token == token
       assert match?({:ok, ^token}, result)
@@ -128,12 +127,13 @@ defmodule CsrfPlus.CsrfPlusTest do
 
     test "if it fails to put a token into the session when CsrfPlus is not plugged yet" do
       Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+      Fixtures.token_config_fixture()
 
       conn =
         build_session_conn(:get)
         |> Plug.Conn.fetch_session()
 
-      {token, _} = CsrfPlus.generate_token(conn)
+      {token, _} = CsrfPlus.Token.generate()
       assert_raise RuntimeError, fn -> CsrfPlus.put_session_token(conn, token) end
     end
 
@@ -236,8 +236,7 @@ defmodule CsrfPlus.CsrfPlusTest do
 
     test "if the validation succeeds when all the tokens are valid and matches each other" do
       Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
-      Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
-      csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
+      csrf_config = CsrfPlus.init(csrf_key: :csrf_token, store: CsrfPlus.StoreMock)
 
       conn =
         :post
@@ -245,6 +244,7 @@ defmodule CsrfPlus.CsrfPlusTest do
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> CsrfPlus.call(csrf_config)
 
+      IO.puts("conn: #{inspect(conn)}")
       refute conn.halted
     end
   end

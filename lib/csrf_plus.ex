@@ -2,6 +2,7 @@ defmodule CsrfPlus do
   @moduledoc false
   @behaviour Plug
 
+  alias CsrfPlus.Token
   alias CsrfPlus.UserAccessInfo
   require Logger
 
@@ -14,24 +15,17 @@ defmodule CsrfPlus do
   import Plug.Conn
 
   def init(opts \\ []) do
-    otp_app = Keyword.get(opts, :otp_app)
+    csrf_key = Keyword.get(opts, :csrf_key, @default_csrf_key)
 
-    if otp_app == nil do
-      raise "CsrfPlus requires :otp_app to be set"
-    else
-      csrf_key = Keyword.get(opts, :csrf_key, @default_csrf_key)
+    allowed_methods = Keyword.get(opts, :allowed_methods, @non_csrf_request_methods)
 
-      allowed_methods = Keyword.get(opts, :allowed_methods, @non_csrf_request_methods)
+    store = Keyword.get(opts, :store)
 
-      token_generation_fn = Keyword.get(opts, :token_generation_fn)
-
-      %{
-        otp_app: otp_app,
-        csrf_key: csrf_key,
-        allowed_methods: allowed_methods,
-        token_generation_fn: token_generation_fn
-      }
-    end
+    %{
+      csrf_key: csrf_key,
+      allowed_methods: allowed_methods,
+      store: store
+    }
   end
 
   def call(%Plug.Conn{halted: true} = conn, _opts) do
@@ -42,7 +36,15 @@ defmodule CsrfPlus do
     allowed_method? = allowed_method?(conn, opts)
 
     conn
-    |> put_private(:plug_csrf_plus_config, fn -> opts end)
+    |> put_private(
+      :plug_csrf_plus,
+      %{
+        put_session_token: fn conn, token ->
+          csrf_token = opts.csrf_key
+          Plug.Conn.put_session(conn, csrf_token, token)
+        end
+      }
+    )
     |> check_token(allowed_method?, opts)
   end
 
@@ -57,64 +59,14 @@ defmodule CsrfPlus do
     @default_token_max_age
   end
 
-  def generate_token(%Plug.Conn{secret_key_base: nil}) do
-    raise "CsrfPlus requires conn.secret_key_base to be set"
-  end
+  def put_session_token(%Plug.Conn{private: private} = conn, token) do
+    state = Map.get(private, :plug_csrf_plus, %{})
+    fun = Map.get(state, :put_session_token, nil)
 
-  def generate_token(%Plug.Conn{secret_key_base: key} = conn) do
-    token_generation_fn = get_token_generation_fn(conn)
-    token = token_generation_fn.()
-    signed_token = Plug.Crypto.MessageVerifier.sign(token, key)
-    {token, signed_token}
-  end
-
-  def verify_token(%Plug.Conn{secret_key_base: nil}, _signed_token) do
-    {:error, "no secret key provided in the Plug conn"}
-  end
-
-  def verify_token(
-        %Plug.Conn{secret_key_base: key},
-        signed_token
-      ) do
-    case Plug.Crypto.MessageVerifier.verify(signed_token, key) do
-      :error ->
-        {:error, "invalid token"}
-
-      ok ->
-        ok
-    end
-  end
-
-  def put_session_token(%Plug.Conn{} = conn, token) do
-    opts = get_opts(conn)
-    csrf_key = Map.get(opts, :csrf_key, nil)
-
-    if csrf_key == nil do
+    if fun == nil do
       raise "CsrfPlus.put_session_token/2 must be called after CsrfPlus is plugged"
     else
-      put_session(conn, csrf_key, token)
-    end
-  end
-
-  defp get_opts(%Plug.Conn{} = conn) do
-    opts_fun = Map.get(conn.private, :plug_csrf_plus_config, fn -> %{} end)
-
-    if is_function(opts_fun) do
-      opts_fun.()
-    else
-      %{}
-    end
-  end
-
-  defp get_token_generation_fn(%Plug.Conn{} = conn) do
-    opts = get_opts(conn)
-
-    case Map.get(opts, :token_generation_fn) do
-      nil ->
-        &UUID.uuid4/0
-
-      fun ->
-        fun
+      fun.(conn, token)
     end
   end
 
@@ -152,10 +104,9 @@ defmodule CsrfPlus do
         |> halt()
 
       true ->
-        config = Application.get_env(opts.otp_app, CsrfPlus, [])
-        store = Keyword.get(config, :store, nil)
+        store = Map.get(opts, :store)
 
-        check_token_store(conn, store, {access_id, header_token})
+        check_token_store(conn, store, {opts, access_id, header_token})
     end
   end
 
@@ -167,8 +118,7 @@ defmodule CsrfPlus do
     |> halt()
   end
 
-  defp check_token_store(conn, store, {access_id, header_token}) do
-    opts = get_opts(conn)
+  defp check_token_store(conn, store, {opts, access_id, header_token}) do
     csrf_key = Map.get(opts, :csrf_key, nil)
     store_token = store.get_token(access_id)
     session_token = get_session(conn, csrf_key)
@@ -189,13 +139,12 @@ defmodule CsrfPlus do
         |> halt()
 
       true ->
-        conn
-        |> verify_token(header_token)
-        |> check_token_store_verified(conn, store_token)
+        result = Token.verify(header_token)
+        check_token_store_verified(conn, result, store_token)
     end
   end
 
-  defp check_token_store_verified({:ok, verified_token}, conn, store_token) do
+  defp check_token_store_verified(conn, {:ok, verified_token}, store_token) do
     if verified_token != store_token do
       Logger.debug(
         "Token mismatch: verified_token:#{inspect(verified_token)} != store_token:#{inspect(store_token)}"
@@ -208,7 +157,7 @@ defmodule CsrfPlus do
     end
   end
 
-  defp check_token_store_verified({:error, error}, conn, _store_token) do
+  defp check_token_store_verified(conn, {:error, error}, _store_token) do
     Logger.debug("Token validation error: #{inspect(error)}")
 
     send_resp(conn, :unauthorized, Jason.encode!(%{error: error}))
