@@ -13,6 +13,23 @@ defmodule CsrfPlus.TokenTest do
   end
 
   describe "CsrfPlus.Token default" do
+    test "if it defaults to CsrfPlus.Token.DefaultToken when no Token module is set in the config" do
+      config = Application.get_env(:csrf_plus, CsrfPlus)
+      config_fixture()
+
+      raised =
+        try do
+          CsrfPlus.Token.generate()
+          false
+        rescue
+          RuntimeError ->
+            true
+        end
+
+      assert config == nil
+      refute raised
+    end
+
     test "if it raises an error when no secret key is given" do
       assert_raise RuntimeError, fn ->
         CsrfPlus.Token.generate()
