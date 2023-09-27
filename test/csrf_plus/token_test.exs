@@ -30,9 +30,15 @@ defmodule CsrfPlus.TokenTest do
       refute raised
     end
 
-    test "if it raises an error when no secret key is given" do
+    test "if it raises an error when no secret key is given when generate is called" do
       assert_raise RuntimeError, fn ->
         CsrfPlus.Token.DefaultToken.generate()
+      end
+    end
+
+    test "if it raises an error when no secret key is given when verify is called" do
+      assert_raise RuntimeError, fn ->
+        CsrfPlus.Token.DefaultToken.verify("signed")
       end
     end
 
@@ -40,7 +46,7 @@ defmodule CsrfPlus.TokenTest do
       config_fixture()
       result = CsrfPlus.Token.DefaultToken.generate()
 
-      assert match?({token, signed}, result)
+      assert match?({_token, _signed}, result)
       {token, signed} = result
 
       assert is_binary(token)
