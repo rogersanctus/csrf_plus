@@ -64,5 +64,13 @@ defmodule CsrfPlus.TokenTest do
 
       assert match?({:error, "invalid token"}, result)
     end
+
+    test "if the token generate function uses the token_generation_fn when it's set" do
+      generation_fn = fn -> "token generated" end
+      Fixtures.token_config_fixture(token_generation_fn: generation_fn)
+
+      {token, _} = CsrfPlus.Token.DefaultToken.generate()
+      assert token == "token generated"
+    end
   end
 end
