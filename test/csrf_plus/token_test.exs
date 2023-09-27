@@ -35,5 +35,16 @@ defmodule CsrfPlus.TokenTest do
         CsrfPlus.Token.DefaultToken.generate()
       end
     end
+
+    test "if it can generate a token" do
+      config_fixture()
+      result = CsrfPlus.Token.DefaultToken.generate()
+
+      assert match?({token, signed}, result)
+      {token, signed} = result
+
+      assert is_binary(token)
+      assert is_binary(signed)
+    end
   end
 end
