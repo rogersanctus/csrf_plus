@@ -32,7 +32,7 @@ defmodule CsrfPlus.TokenTest do
 
     test "if it raises an error when no secret key is given" do
       assert_raise RuntimeError, fn ->
-        CsrfPlus.Token.generate()
+        CsrfPlus.Token.DefaultToken.generate()
       end
     end
   end
