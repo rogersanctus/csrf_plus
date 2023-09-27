@@ -61,5 +61,13 @@ defmodule CsrfPlus.TokenTest do
 
       assert match?({:ok, ^token}, result)
     end
+
+    test "if verify returns :error with reason in a tuple when the token is invalid" do
+      config_fixture()
+
+      result = CsrfPlus.Token.DefaultToken.verify("invalid signed token")
+
+      assert match?({:error, "invalid token"}, result)
+    end
   end
 end
