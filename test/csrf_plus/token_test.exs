@@ -1,12 +1,7 @@
 defmodule CsrfPlus.TokenTest do
   use ExUnit.Case
 
-  def config_fixture() do
-    Application.put_env(:csrf_plus, CsrfPlus.Token,
-      secret_key:
-        "XeMI8JB7othiZ3YOD4aCfSs_L4LZ1FmOaFtE3lFgjQN9cNxWBMsdJcxzp83TIuMcXbKAh1h0jb5zlybAPheTlA=="
-    )
-  end
+  alias CsrfPlus.Fixtures
 
   setup do
     on_exit(fn -> Application.delete_env(:csrf_plus, CsrfPlus.Token) end)
@@ -15,7 +10,7 @@ defmodule CsrfPlus.TokenTest do
   describe "CsrfPlus.Token default" do
     test "if it defaults to CsrfPlus.Token.DefaultToken when no Token module is set in the config" do
       config = Application.get_env(:csrf_plus, CsrfPlus)
-      config_fixture()
+      Fixtures.token_config_fixture()
 
       raised =
         try do
@@ -43,7 +38,7 @@ defmodule CsrfPlus.TokenTest do
     end
 
     test "if it can generate a token" do
-      config_fixture()
+      Fixtures.token_config_fixture()
       result = CsrfPlus.Token.DefaultToken.generate()
 
       assert match?({_token, _signed}, result)
@@ -54,7 +49,7 @@ defmodule CsrfPlus.TokenTest do
     end
 
     test "if it can verify a generated token" do
-      config_fixture()
+      Fixtures.token_config_fixture()
 
       {token, signed} = CsrfPlus.Token.DefaultToken.generate()
       result = CsrfPlus.Token.DefaultToken.verify(signed)
@@ -63,7 +58,7 @@ defmodule CsrfPlus.TokenTest do
     end
 
     test "if verify returns :error with reason in a tuple when the token is invalid" do
-      config_fixture()
+      Fixtures.token_config_fixture()
 
       result = CsrfPlus.Token.DefaultToken.verify("invalid signed token")
 
