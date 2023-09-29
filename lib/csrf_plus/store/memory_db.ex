@@ -4,13 +4,12 @@ defmodule CsrfPlus.Store.MemoryDb do
   use GenServer
   @behaviour CsrfPlus.Store.Behaviour
 
-  def start_link(opts \\ []) do
-    opts = %{
-      Enum.into(opts, %{})
-      | db: []
+  def start_link(_opts) do
+    state = %{
+      db: []
     }
 
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+    GenServer.start_link(__MODULE__, state, name: __MODULE__)
   end
 
   def init(init_arg) do
