@@ -75,7 +75,9 @@ defmodule CsrfPlus.Store.MemoryDb do
   end
 
   def handle_call(:all_accesses, _from, state) do
-    {:reply, state.db, state}
+    db = Enum.map(state.db, fn entry -> Map.merge(%UserAccess{}, entry) end)
+
+    {:reply, db, state}
   end
 
   def handle_call(
