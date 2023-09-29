@@ -25,4 +25,15 @@ defmodule CsrfPlus.SupervisorTest do
     assert is_pid(pid)
     assert Process.alive?(pid)
   end
+
+  test "if only Store Manager is started when there is no store set" do
+    CsrfPlus.Supervisor.start_link([])
+
+    pid = Process.whereis(CsrfPlus.Store.Manager)
+
+    children = Supervisor.which_children(CsrfPlus.Supervisor)
+
+    assert is_pid(pid) && Process.alive?(pid)
+    assert Enum.count(children) == 1
+  end
 end
