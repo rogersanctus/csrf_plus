@@ -17,9 +17,6 @@ defmodule CsrfPlus.SupervisorTest do
   end
 
   test "if the supervisor starts the Store MemoryDB" do
-    previous_pid = Process.whereis(CsrfPlus.Supervisor)
-
-    IO.inspect("previous_pid #{inspect(previous_pid)}")
     Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.Store.MemoryDb)
     CsrfPlus.Supervisor.start_link(otp_app: :test_app)
 
