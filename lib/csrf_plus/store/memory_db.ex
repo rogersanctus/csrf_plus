@@ -16,6 +16,10 @@ defmodule CsrfPlus.Store.MemoryDb do
     {:ok, init_arg}
   end
 
+  def all_accesses() do
+    GenServer.call(__MODULE__, :all_accesses)
+  end
+
   def put_token(
         %UserAccess{token: token, access_id: access_id, created_at: nil} =
           user_access
@@ -68,6 +72,10 @@ defmodule CsrfPlus.Store.MemoryDb do
 
   def delete_dead_tokens(max_age) do
     GenServer.call(__MODULE__, {:delete_dead_tokens, max_age})
+  end
+
+  def handle_call(:all_accesses, _from, state) do
+    {:reply, state.db, state}
   end
 
   def handle_call(
