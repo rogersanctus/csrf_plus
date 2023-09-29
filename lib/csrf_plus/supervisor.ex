@@ -22,12 +22,12 @@ defmodule CsrfPlus.Supervisor do
       {CsrfPlus.Store.Manager, [otp_app: otp_app, token_max_age: token_max_age]}
     ]
 
-    config = Application.get_env(otp_app, CsrfPlus, [])
+    config = Application.get_env(:csrf_plus, CsrfPlus, [])
     store = Keyword.get(config, :store, nil)
 
     children =
-      if store == CsrfPlus.Store.Manager do
-        children ++ {CsrfPlus.Store.MemoryDB, []}
+      if store == CsrfPlus.Store.MemoryDb do
+        children ++ [{CsrfPlus.Store.MemoryDb, []}]
       else
         children
       end
