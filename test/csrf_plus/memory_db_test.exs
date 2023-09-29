@@ -37,5 +37,45 @@ defmodule CsrfPlus.MemoryDbTest do
       store_access = hd(all_accesses)
       assert match?(^access, store_access)
     end
+
+    test "if tokens are store correctly" do
+      access_id = "an_id"
+
+      tokens = [
+        "token_one",
+        "token_two",
+        "token_three"
+      ]
+
+      created_at = System.os_time(:millisecond)
+
+      MemoryDb.start_link([])
+
+      MemoryDb.put_token(%UserAccess{
+        token: Enum.at(tokens, 0),
+        access_id: access_id,
+        created_at: created_at
+      })
+
+      MemoryDb.put_token(%UserAccess{
+        token: Enum.at(tokens, 1),
+        access_id: access_id,
+        created_at: created_at
+      })
+
+      MemoryDb.put_token(%UserAccess{
+        token: Enum.at(tokens, 2),
+        access_id: access_id,
+        created_at: created_at
+      })
+
+      all_accesses = MemoryDb.all_accesses()
+
+      assert Enum.count(all_accesses) == 3
+
+      assert Enum.all?(tokens, fn token ->
+               Enum.find(all_accesses, nil, fn entry -> entry.token == token end) != nil
+             end)
+    end
   end
 end
