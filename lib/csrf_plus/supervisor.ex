@@ -5,11 +5,11 @@ defmodule CsrfPlus.Supervisor do
     otp_app = Keyword.fetch!(init_arg, :otp_app)
     token_max_age = Keyword.get(init_arg, :token_max_age, CsrfPlus.default_token_max_age())
 
-    init_arg = [
-      {:otp_app, otp_app},
-      {:token_max_age, token_max_age}
-      | init_arg
-    ]
+    init_arg =
+      Keyword.merge(init_arg, [
+        {:otp_app, otp_app},
+        {:token_max_age, token_max_age}
+      ])
 
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
