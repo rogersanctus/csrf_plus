@@ -36,4 +36,16 @@ defmodule CsrfPlus.SupervisorTest do
     assert is_pid(pid) && Process.alive?(pid)
     assert Enum.count(children) == 1
   end
+
+  test "if only Store Manager is started when MemoryDb is not set as store" do
+    Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.Store.AnyStore)
+    CsrfPlus.Supervisor.start_link([])
+
+    pid = Process.whereis(CsrfPlus.Store.Manager)
+
+    children = Supervisor.which_children(CsrfPlus.Supervisor)
+
+    assert is_pid(pid) && Process.alive?(pid)
+    assert Enum.count(children) == 1
+  end
 end
