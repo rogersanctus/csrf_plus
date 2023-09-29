@@ -5,7 +5,7 @@ defmodule CsrfPlus.Store.Manager do
   @check_age_time 60 * 60 * 1000
 
   def start_link(
-        [otp_app: _otp_app, token_max_age: token_max_age] =
+        [token_max_age: token_max_age] =
           init_arg
       )
       when is_integer(token_max_age) do
@@ -26,11 +26,10 @@ defmodule CsrfPlus.Store.Manager do
   def handle_info(
         :check_age,
         %{
-          otp_app: otp_app,
           token_max_age: token_max_age
         } = state
       ) do
-    config = Application.get_env(otp_app, CsrfPlus, [])
+    config = Application.get_env(:csrf_plus, CsrfPlus, [])
     store = Keyword.get(config, :store, nil)
 
     if !is_nil(store) do
