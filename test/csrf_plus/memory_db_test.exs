@@ -208,5 +208,47 @@ defmodule CsrfPlus.MemoryDbTest do
                almost_checking_time <= access.created_at + max_age
              end)
     end
+
+    test "if no access is deleted after :delete_dead_accesses/1 is called and all accesses are healthy" do
+      MemoryDb.start_link([])
+
+      # 100 milliseconds
+      max_age = 100
+
+      good_time = System.os_time(:millisecond)
+
+      all_raw = [
+        %{
+          token: "health token 1",
+          access_id: "access_id_1",
+          created_at: good_time
+        },
+        %{
+          token: "health token 2",
+          access_id: "access_id_2",
+          created_at: good_time
+        }
+      ]
+
+      Enum.each(all_raw, fn raw ->
+        MemoryDb.put_access(%UserAccess{
+          token: raw.token,
+          access_id: raw.access_id,
+          created_at: raw.created_at
+        })
+      end)
+
+      all_accesses = MemoryDb.all_accesses()
+
+      assert Enum.count(all_accesses) == Enum.count(all_raw)
+
+      result = MemoryDb.delete_dead_accesses(max_age)
+
+      assert result == :ok
+
+      all_accesses_after_delete = MemoryDb.all_accesses()
+
+      assert Enum.count(all_accesses_after_delete) == Enum.count(all_raw)
+    end
   end
 end
