@@ -78,6 +78,14 @@ defmodule CsrfPlus.MemoryDbTest do
              end)
     end
 
+    test "if put a wrong access returns an error" do
+      MemoryDb.start_link([])
+
+      put_result = MemoryDb.put_access(:wrong)
+
+      assert match?({:error, :invalid_param}, put_result)
+    end
+
     test "if an access can be retrieved by access_id" do
       MemoryDb.start_link([])
       token = "a_token"
@@ -98,6 +106,14 @@ defmodule CsrfPlus.MemoryDbTest do
       retrieved_access = MemoryDb.get_access("non_stored_access_id")
 
       assert retrieved_access == nil
+    end
+
+    test "if trying to retrieve an access with invalid param fails with error" do
+      MemoryDb.start_link([])
+
+      retrieve_result = MemoryDb.get_access(:wrong)
+
+      assert match?({:error, :invalid_param}, retrieve_result)
     end
 
     test "if an access can be deleted" do
@@ -126,6 +142,14 @@ defmodule CsrfPlus.MemoryDbTest do
       assert match?({:error, _}, deleted_result)
       {:error, error} = deleted_result
       assert error == :not_found
+    end
+
+    test "if trying to delete an access fails with error when the param is invalid" do
+      MemoryDb.start_link([])
+
+      delete_result = MemoryDb.delete_access(:wrong)
+
+      assert match?({:error, :invalid_param}, delete_result)
     end
   end
 end
