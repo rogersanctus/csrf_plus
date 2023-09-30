@@ -92,5 +92,12 @@ defmodule CsrfPlus.MemoryDbTest do
 
       assert retrieved_access.token == token
     end
+
+    test "if trying to retrieve a non stored access returns nil" do
+      MemoryDb.start_link([])
+      retrieved_access = MemoryDb.get_access("non_stored_access_id")
+
+      assert retrieved_access == nil
+    end
   end
 end
