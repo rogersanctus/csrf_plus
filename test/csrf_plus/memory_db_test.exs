@@ -99,5 +99,23 @@ defmodule CsrfPlus.MemoryDbTest do
 
       assert retrieved_access == nil
     end
+
+    test "if an access can be deleted" do
+      MemoryDb.start_link([])
+
+      token = "a_token"
+      access_id = "the_id"
+
+      MemoryDb.put_access(%UserAccess{
+        token: token,
+        access_id: access_id
+      })
+
+      deleted_result = MemoryDb.delete_access(access_id)
+
+      assert match?({:ok, _}, deleted_result)
+      {:ok, deleted_access} = deleted_result
+      assert deleted_access.token == token
+    end
   end
 end
