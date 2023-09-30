@@ -117,5 +117,15 @@ defmodule CsrfPlus.MemoryDbTest do
       {:ok, deleted_access} = deleted_result
       assert deleted_access.token == token
     end
+
+    test "if a non existing acess cannot be deleted and returns an error" do
+      MemoryDb.start_link([])
+
+      deleted_result = MemoryDb.delete_access("non_existing_access_id")
+
+      assert match?({:error, _}, deleted_result)
+      {:error, error} = deleted_result
+      assert error == :not_found
+    end
   end
 end
