@@ -120,7 +120,8 @@ defmodule CsrfPlus do
 
   defp check_token_store(conn, store, {opts, access_id, header_token}) do
     csrf_key = Map.get(opts, :csrf_key, nil)
-    store_token = store.get_token(access_id)
+    store_access = store.get_access(access_id)
+    store_token = Map.get(store_access || %{}, :token, nil)
     session_token = get_session(conn, csrf_key)
 
     cond do

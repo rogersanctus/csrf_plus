@@ -9,15 +9,15 @@ defmodule CsrfPlus.OkStoreMock do
   def the_token, do: @the_token
   def access_id, do: @access_id
 
-  def get_token("the-access-id") do
-    @the_token
+  def get_access("the-access-id" = access_id) do
+    %UserAccess{token: @the_token, access_id: access_id}
   end
 
-  def put_token(%UserAccess{access_id: "the-access-id"}) do
-    {:ok, @the_token}
+  def put_access(%UserAccess{access_id: "the-access-id"} = access) do
+    {:ok, Map.merge(access, %{token: @the_token})}
   end
 
-  def delete_token("the-access-id") do
-    {:ok, @the_token}
+  def delete_access("the-access-id" = access_id) do
+    {:ok, %UserAccess{token: @the_token, access_id: access_id}}
   end
 end

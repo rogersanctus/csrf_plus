@@ -2,6 +2,7 @@ defmodule CsrfPlus.CsrfPlusTest do
   use ExUnit.Case
 
   import Plug.Test
+  alias CsrfPlus.UserAccess
   alias CsrfPlus
   alias CsrfPlus.Fixtures
 
@@ -75,8 +76,9 @@ defmodule CsrfPlus.CsrfPlusTest do
 
   describe "CSRF Plug configuration" do
     test "if the correct store is set and called when CsrfPlus is plugged" do
-      Mox.stub(CsrfPlus.StoreMock, :get_token, fn _ ->
+      Mox.stub(CsrfPlus.StoreMock, :get_access, fn _ ->
         send(self(), :store_called)
+        nil
       end)
 
       config = CsrfPlus.init(store: CsrfPlus.StoreMock)
@@ -191,7 +193,7 @@ defmodule CsrfPlus.CsrfPlusTest do
     end
 
     test "if the validation fails when the token in the session is different from the token in the store" do
-      Mox.stub(CsrfPlus.StoreMock, :get_token, fn _ -> "different token" end)
+      Mox.stub(CsrfPlus.StoreMock, :get_access, fn _ -> %UserAccess{token: "different token"} end)
       Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
       csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
 
@@ -220,7 +222,7 @@ defmodule CsrfPlus.CsrfPlusTest do
     end
 
     test "if the validation fails when the header token is valid but does not match the session token or the store token" do
-      Mox.stub(CsrfPlus.StoreMock, :get_token, fn _ -> "different token" end)
+      Mox.stub(CsrfPlus.StoreMock, :get_access, fn _ -> %UserAccess{token: "different token"} end)
       Application.put_env(:test_app, CsrfPlus, store: CsrfPlus.StoreMock)
       csrf_config = CsrfPlus.init(otp_app: :test_app, csrf_key: :csrf_token)
 

@@ -45,6 +45,6 @@ defmodule CsrfPlus.Store.Manager do
   end
 
   defp check_age(store, token_max_age) do
-    store.delete_dead_tokens(token_max_age)
+    store.delete_dead_accesses(token_max_age)
   end
 end

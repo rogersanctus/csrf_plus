@@ -20,7 +20,7 @@ defmodule CsrfPlus.Store.MemoryDb do
     GenServer.call(__MODULE__, :all_accesses)
   end
 
-  def put_token(
+  def put_access(
         %UserAccess{token: token, access_id: access_id, created_at: nil} =
           user_access
       )
@@ -28,10 +28,10 @@ defmodule CsrfPlus.Store.MemoryDb do
     created_at = System.os_time(:millisecond)
 
     %{user_access | created_at: created_at}
-    |> put_token()
+    |> put_access()
   end
 
-  def put_token(
+  def put_access(
         %UserAccess{
           token: token,
           access_id: access_id,
@@ -39,39 +39,36 @@ defmodule CsrfPlus.Store.MemoryDb do
         } = user_access
       )
       when is_binary(token) and is_binary(access_id) and is_integer(created_at) do
-    case GenServer.call(
-           __MODULE__,
-           {:put_token, user_access}
-         ) do
-      :ok -> {:ok, token}
-      error -> {:error, error}
-    end
+    GenServer.call(
+      __MODULE__,
+      {:put_access, user_access}
+    )
   end
 
-  def put_token(_) do
+  def put_access(_) do
     {:error, "invalid_param"}
   end
 
-  def get_token(access_id = access_id)
+  def get_access(access_id = access_id)
       when is_binary(access_id) do
-    GenServer.call(__MODULE__, {:get_token, access_id})
+    GenServer.call(__MODULE__, {:get_access, access_id})
   end
 
-  def get_token(_) do
+  def get_access(_) do
     {:error, "invalid_param"}
   end
 
-  def delete_token(access_id = access_id)
+  def delete_access(access_id = access_id)
       when is_binary(access_id) do
-    GenServer.call(__MODULE__, {:delete_token, access_id})
+    GenServer.call(__MODULE__, {:delete_access, access_id})
   end
 
-  def delete_token(_) do
+  def delete_access(_) do
     {:error, "invalid_param"}
   end
 
-  def delete_dead_tokens(max_age) do
-    GenServer.call(__MODULE__, {:delete_dead_tokens, max_age})
+  def delete_dead_accesses(max_age) do
+    GenServer.call(__MODULE__, {:delete_dead_accesses, max_age})
   end
 
   def handle_call(:all_accesses, _from, state) do
@@ -81,40 +78,56 @@ defmodule CsrfPlus.Store.MemoryDb do
   end
 
   def handle_call(
-        {:put_token, %{token: token, access_id: access_id, created_at: created_at}},
+        {:put_access, %{token: _token, access_id: _access_id, created_at: _created_at} = access},
         _from,
         state
       ) do
     state =
       %{
         state
-        | db: [%{token: token, access_id: access_id, created_at: created_at} | state.db]
+        | db: [access | state.db]
       }
 
-    {:reply, :ok, state}
+    user_access = Map.merge(%UserAccess{}, access)
+
+    {:reply, {:ok, user_access}, state}
   end
 
-  def handle_call({:get_token, access_id}, _from, state) do
-    user_access =
+  def handle_call({:get_access, access_id}, _from, state) do
+    access =
       Enum.find(state.db, nil, fn entry -> entry.access_id == access_id end)
 
-    {:reply, user_access.token, state}
+    user_access =
+      if access != nil do
+        Map.merge(%UserAccess{}, access)
+      end
+
+    {:reply, user_access, state}
   end
 
-  def handle_call({:delete_token, access_id}, _from, state) do
-    state =
-      %{
-        state
-        | db:
-            Enum.reject(state.db, fn entry ->
-              entry.access_id == access_id
-            end)
-      }
+  def handle_call({:delete_access, access_id}, _from, state) do
+    deleted = Enum.find(state.db, nil, fn entry -> entry.access_id == access_id end)
 
-    {:reply, :ok, state}
+    {state, result} =
+      if deleted != nil do
+        {
+          %{
+            state
+            | db:
+                Enum.reject(state.db, fn entry ->
+                  entry == deleted
+                end)
+          },
+          {:ok, deleted}
+        }
+      else
+        {state, {:error, :not_found}}
+      end
+
+    {:reply, result, state}
   end
 
-  def handle_call({:delete_dead_tokens, max_age}, _from, %{db: db} = state)
+  def handle_call({:delete_dead_accesses, max_age}, _from, %{db: db} = state)
       when is_integer(max_age) do
     state = %{
       state
