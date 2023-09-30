@@ -29,7 +29,7 @@ defmodule CsrfPlus.MemoryDbTest do
       created_at = System.os_time(:millisecond)
       access = %UserAccess{token: "a_token", access_id: "an_id", created_at: created_at}
 
-      MemoryDb.put_token(access)
+      MemoryDb.put_access(access)
 
       all_accesses = MemoryDb.all_accesses()
 
@@ -51,19 +51,19 @@ defmodule CsrfPlus.MemoryDbTest do
 
       MemoryDb.start_link([])
 
-      MemoryDb.put_token(%UserAccess{
+      MemoryDb.put_access(%UserAccess{
         token: Enum.at(tokens, 0),
         access_id: access_id,
         created_at: created_at
       })
 
-      MemoryDb.put_token(%UserAccess{
+      MemoryDb.put_access(%UserAccess{
         token: Enum.at(tokens, 1),
         access_id: access_id,
         created_at: created_at
       })
 
-      MemoryDb.put_token(%UserAccess{
+      MemoryDb.put_access(%UserAccess{
         token: Enum.at(tokens, 2),
         access_id: access_id,
         created_at: created_at
@@ -76,6 +76,21 @@ defmodule CsrfPlus.MemoryDbTest do
       assert Enum.all?(tokens, fn token ->
                Enum.find(all_accesses, nil, fn entry -> entry.token == token end) != nil
              end)
+    end
+
+    test "if a token can be retrieved by access_id" do
+      MemoryDb.start_link([])
+      token = "a_token"
+      access_id = "the_id"
+
+      MemoryDb.put_access(%UserAccess{
+        token: token,
+        access_id: access_id
+      })
+
+      retrieved_access = MemoryDb.get_access(access_id)
+
+      assert retrieved_access.token == token
     end
   end
 end
