@@ -129,11 +129,13 @@ defmodule CsrfPlus.Store.MemoryDb do
 
   def handle_call({:delete_dead_accesses, max_age}, _from, %{db: db} = state)
       when is_integer(max_age) do
+    checking_time = System.os_time(:millisecond)
+
     state = %{
       state
       | db:
           Enum.reject(db, fn entry ->
-            System.os_time(:millisecond) > entry.created_at + max_age
+            checking_time > entry.created_at + max_age
           end)
     }
 
