@@ -46,7 +46,7 @@ defmodule CsrfPlus.Store.MemoryDb do
   end
 
   def put_access(_) do
-    {:error, "invalid_param"}
+    {:error, :invalid_param}
   end
 
   def get_access(access_id = access_id)
@@ -55,7 +55,7 @@ defmodule CsrfPlus.Store.MemoryDb do
   end
 
   def get_access(_) do
-    {:error, "invalid_param"}
+    {:error, :invalid_param}
   end
 
   def delete_access(access_id = access_id)
@@ -64,7 +64,7 @@ defmodule CsrfPlus.Store.MemoryDb do
   end
 
   def delete_access(_) do
-    {:error, "invalid_param"}
+    {:error, :invalid_param}
   end
 
   def delete_dead_accesses(max_age) do
