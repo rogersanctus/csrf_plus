@@ -23,7 +23,7 @@ defmodule CsrfPlus.MemoryDbTest do
       assert Enum.empty?(all_tokens)
     end
 
-    test "if a token is correctly stored" do
+    test "if an access is correctly stored" do
       MemoryDb.start_link([])
 
       created_at = System.os_time(:millisecond)
@@ -38,7 +38,7 @@ defmodule CsrfPlus.MemoryDbTest do
       assert match?(^access, store_access)
     end
 
-    test "if tokens are store correctly" do
+    test "if accesses are stored correctly" do
       access_id = "an_id"
 
       tokens = [
@@ -78,7 +78,7 @@ defmodule CsrfPlus.MemoryDbTest do
              end)
     end
 
-    test "if a token can be retrieved by access_id" do
+    test "if an access can be retrieved by access_id" do
       MemoryDb.start_link([])
       token = "a_token"
       access_id = "the_id"
