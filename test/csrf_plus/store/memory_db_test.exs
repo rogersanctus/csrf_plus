@@ -1,4 +1,4 @@
-defmodule CsrfPlus.MemoryDbTest do
+defmodule CsrfPlus.Store.MemoryDbTest do
   use ExUnit.Case
 
   alias CsrfPlus.UserAccess
