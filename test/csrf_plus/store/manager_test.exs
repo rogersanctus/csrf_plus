@@ -10,4 +10,10 @@ defmodule CsrfPlus.Store.ManagerTest do
     assert is_pid(pid)
     assert Process.alive?(pid)
   end
+
+  test "if the store is not started when missing params" do
+    assert_raise FunctionClauseError, fn ->
+      Manager.start_link([])
+    end
+  end
 end
