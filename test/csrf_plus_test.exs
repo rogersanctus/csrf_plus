@@ -67,6 +67,7 @@ defmodule CsrfPlus.CsrfPlusTest do
   # Clean up CsrfPlus configuration after each test
   setup do
     on_exit(fn ->
+      Application.delete_env(:csrf_plus, CsrfPlus)
       Application.delete_env(:csrf_plus, CsrfPlus.Token)
     end)
   end
@@ -78,7 +79,8 @@ defmodule CsrfPlus.CsrfPlusTest do
         nil
       end)
 
-      config = CsrfPlus.init(store: CsrfPlus.StoreMock)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
+      config = CsrfPlus.init([])
 
       conn =
         build_session_conn(:post)
@@ -168,7 +170,8 @@ defmodule CsrfPlus.CsrfPlusTest do
 
     test "if the validation fails when there is no token in the connection session" do
       Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
-      csrf_config = CsrfPlus.init(csrf_key: :csrf_token, store: CsrfPlus.StoreMock)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
+      csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
 
       conn =
         :post
@@ -183,7 +186,8 @@ defmodule CsrfPlus.CsrfPlusTest do
 
     test "if the validation fails when the token in the session is different from the token in the store" do
       Mox.stub(CsrfPlus.StoreMock, :get_access, fn _ -> %UserAccess{token: "different token"} end)
-      csrf_config = CsrfPlus.init(csrf_key: :csrf_token, store: CsrfPlus.StoreMock)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
+      csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
 
       conn =
         :post
@@ -196,7 +200,8 @@ defmodule CsrfPlus.CsrfPlusTest do
 
     test "if the validation fails when everything is ok but the token in the header is invalid" do
       Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
-      csrf_config = CsrfPlus.init(csrf_key: :csrf_token, store: CsrfPlus.StoreMock)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
+      csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
 
       conn =
         :post
@@ -210,7 +215,8 @@ defmodule CsrfPlus.CsrfPlusTest do
 
     test "if the validation fails when the header token is valid but does not match the session token or the store token" do
       Mox.stub(CsrfPlus.StoreMock, :get_access, fn _ -> %UserAccess{token: "different token"} end)
-      csrf_config = CsrfPlus.init(csrf_key: :csrf_token, store: CsrfPlus.StoreMock)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
+      csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
 
       conn =
         :post
@@ -224,7 +230,8 @@ defmodule CsrfPlus.CsrfPlusTest do
 
     test "if the validation succeeds when all the tokens are valid and matches each other" do
       Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
-      csrf_config = CsrfPlus.init(csrf_key: :csrf_token, store: CsrfPlus.StoreMock)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
+      csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
 
       conn =
         :post

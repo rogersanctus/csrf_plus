@@ -19,7 +19,10 @@ defmodule CsrfPlus do
 
     allowed_methods = Keyword.get(opts, :allowed_methods, @non_csrf_request_methods)
 
-    store = Keyword.get(opts, :store)
+    store =
+      :csrf_plus
+      |> Application.get_env(CsrfPlus, [])
+      |> Keyword.get(:store)
 
     %{
       csrf_key: csrf_key,
