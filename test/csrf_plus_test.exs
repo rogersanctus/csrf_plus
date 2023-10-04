@@ -76,17 +76,15 @@ defmodule CsrfPlus.CsrfPlusTest do
     test "if the correct store is set and called when CsrfPlus is plugged" do
       Mox.stub(CsrfPlus.StoreMock, :get_access, fn _ ->
         send(self(), :store_called)
-        nil
+        %UserAccess{token: CsrfPlus.OkStoreMock.the_token()}
       end)
 
       Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
-      config = CsrfPlus.init([])
+      config = CsrfPlus.init(csrf_key: :csrf_token)
 
       conn =
-        build_session_conn(:post)
-        |> Plug.Conn.fetch_session()
+        build_session_req_conn(:post, true)
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
-        |> Plug.Conn.put_req_header("x-csrf-token", CsrfPlus.OkStoreMock.the_token())
 
       CsrfPlus.call(conn, config)
 
@@ -131,41 +129,38 @@ defmodule CsrfPlus.CsrfPlusTest do
         |> Plug.Conn.fetch_session()
 
       {token, _} = CsrfPlus.Token.generate()
-      assert_raise RuntimeError, fn -> CsrfPlus.put_session_token(conn, token) end
+      assert_raise CsrfPlus.Exception, fn -> CsrfPlus.put_session_token(conn, token) end
     end
 
     test "if the token validation fails when there is no session_id set in the request session" do
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
       conn = build_session_req_conn(:post)
 
-      conn =
+      assert_raise CsrfPlus.Exception.Session, fn ->
         CsrfPlus.call(conn, csrf_config)
-
-      assert conn.halted
+      end
     end
 
     test "if the validation fails when there is no token in the request headers" do
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
       conn = build_session_req_conn(:post)
 
-      conn =
+      assert_raise CsrfPlus.Exception.Header, fn ->
         conn
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> CsrfPlus.call(csrf_config)
-
-      assert conn.halted
+      end
     end
 
     test "if the validation fails when no token store is set" do
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
       conn = build_session_req_conn(:post, true)
 
-      conn =
+      assert_raise CsrfPlus.Exception.Store, fn ->
         conn
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> CsrfPlus.call(csrf_config)
-
-      assert conn.halted
+      end
     end
 
     test "if the validation fails when there is no token in the connection session" do
@@ -173,15 +168,14 @@ defmodule CsrfPlus.CsrfPlusTest do
       Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
 
-      conn =
+      assert_raise CsrfPlus.Exception.Session, fn ->
         :post
         |> build_session_conn()
         |> Plug.Conn.fetch_session()
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> Plug.Conn.put_req_header("x-csrf-token", CsrfPlus.OkStoreMock.the_token())
         |> CsrfPlus.call(csrf_config)
-
-      assert conn.halted
+      end
     end
 
     test "if the validation fails when the token in the session is different from the token in the store" do
@@ -189,13 +183,12 @@ defmodule CsrfPlus.CsrfPlusTest do
       Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
 
-      conn =
+      assert_raise CsrfPlus.Exception.Mismatch, fn ->
         :post
         |> build_session_req_conn(true)
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> CsrfPlus.call(csrf_config)
-
-      assert conn.halted
+      end
     end
 
     test "if the validation fails when everything is ok but the token in the header is invalid" do
@@ -203,14 +196,13 @@ defmodule CsrfPlus.CsrfPlusTest do
       Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
 
-      conn =
+      assert_raise CsrfPlus.Exception, fn ->
         :post
         |> build_session_req_conn()
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> Plug.Conn.put_req_header("x-csrf-token", "wrong token")
         |> CsrfPlus.call(csrf_config)
-
-      assert conn.halted
+      end
     end
 
     test "if the validation fails when the header token is valid but does not match the session token or the store token" do
@@ -218,14 +210,13 @@ defmodule CsrfPlus.CsrfPlusTest do
       Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
 
-      conn =
+      assert_raise CsrfPlus.Exception.Mismatch, fn ->
         :post
         |> build_session_req_conn(true)
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> Plug.Conn.put_session(:csrf_token, "different token")
         |> CsrfPlus.call(csrf_config)
-
-      assert conn.halted
+      end
     end
 
     test "if the validation succeeds when all the tokens are valid and matches each other" do

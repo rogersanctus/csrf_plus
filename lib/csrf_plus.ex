@@ -67,7 +67,8 @@ defmodule CsrfPlus do
     fun = Map.get(state, :put_session_token, nil)
 
     if fun == nil do
-      raise "CsrfPlus.put_session_token/2 must be called after CsrfPlus is plugged"
+      raise CsrfPlus.Exception,
+            "CsrfPlus.put_session_token/2 must be called after CsrfPlus is plugged"
     else
       fun.(conn, token)
     end
@@ -94,17 +95,10 @@ defmodule CsrfPlus do
 
     cond do
       is_nil(access_id) ->
-        conn
-        |> send_resp(:unauthorized, Jason.encode!(%{error: "Missing access_id in the session"}))
-        |> halt()
+        raise CsrfPlus.Exception, {CsrfPlus.Exception.Session, "missing access_id in the session"}
 
       header_token == nil ->
-        conn
-        |> send_resp(
-          :unauthorized,
-          Jason.encode!(%{error: "Missing token in the request header"})
-        )
-        |> halt()
+        raise CsrfPlus.Exception, CsrfPlus.Exception.Header
 
       true ->
         store = Map.get(opts, :store)
@@ -113,12 +107,10 @@ defmodule CsrfPlus do
     end
   end
 
-  defp check_token_store(conn, nil, _to_check) do
+  defp check_token_store(_conn, nil, _to_check) do
     Logger.debug("CsrfPlus: No token store configured")
 
-    conn
-    |> send_resp(:unauthorized, Jason.encode!(%{error: "No token store configured"}))
-    |> halt()
+    raise CsrfPlus.Exception, {CsrfPlus.Exception.Store, "no token store configured"}
   end
 
   defp check_token_store(conn, store, {opts, access_id, header_token}) do
@@ -131,16 +123,14 @@ defmodule CsrfPlus do
       session_token == nil ->
         Logger.debug("Missing token in the request session")
 
-        send_resp(conn, :unauthorized, Jason.encode!(%{error: "Missing token in the session"}))
-        |> halt()
+        raise CsrfPlus.Exception, CsrfPlus.Exception.Session
 
       session_token != store_token ->
         Logger.debug(
           "Token mismatch session:#{inspect(session_token)} != store:#{inspect(store_token)}"
         )
 
-        send_resp(conn, :unauthorized, Jason.encode!(%{error: "Invalid token"}))
-        |> halt()
+        raise CsrfPlus.Exception, CsrfPlus.Exception.Mismatch
 
       true ->
         result = Token.verify(header_token)
@@ -154,18 +144,16 @@ defmodule CsrfPlus do
         "Token mismatch: verified_token:#{inspect(verified_token)} != store_token:#{inspect(store_token)}"
       )
 
-      send_resp(conn, :unauthorized, Jason.encode!(%{error: "Invalid token"}))
-      |> halt()
+      raise CsrfPlus.Exception, CsrfPlus.Exception.Mismatch
     else
       conn
     end
   end
 
-  defp check_token_store_verified(conn, {:error, error}, _store_token) do
+  defp check_token_store_verified(_conn, {:error, error}, _store_token) do
     Logger.debug("Token validation error: #{inspect(error)}")
 
-    send_resp(conn, :unauthorized, Jason.encode!(%{error: error}))
-    |> halt()
+    raise CsrfPlus.Exception, error
   end
 
   defp get_conn_ip(%Plug.Conn{remote_ip: remote_ip, req_headers: req_headers}) do
