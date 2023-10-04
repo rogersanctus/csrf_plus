@@ -39,6 +39,10 @@ defmodule CsrfPlus.Exception do
     map_exception_message(__MODULE__, message)
   end
 
+  def csrf_plus_exception?(exception) do
+    Map.has_key?(exceptions(), exception)
+  end
+
   defp map_exception(which, type \\ nil) when is_atom(type) do
     {exception, message} = get_exception(which, type)
 
