@@ -3,30 +3,30 @@ defmodule CsrfPlus.Exception do
 
   defexception [:message]
 
-  defmodule Header do
+  defmodule HeaderException do
     defexception [:message]
   end
 
-  defmodule Mismatch do
+  defmodule MismatchException do
     defexception [:message]
   end
 
-  defmodule Session do
+  defmodule SessionException do
     defexception [:message]
   end
 
-  defmodule Store do
+  defmodule StoreException do
     defexception [:message]
   end
 
   @impl Exception
-  def exception(nil) do
+  def exception([]) do
     map_exception(__MODULE__)
   end
 
   @impl Exception
-  def exception({which, message}) do
-    map_exception(which, message)
+  def exception({which, type}) when is_atom(type) do
+    map_exception(which, type)
   end
 
   @impl Exception
@@ -36,32 +36,46 @@ defmodule CsrfPlus.Exception do
 
   @impl Exception
   def exception(message) when is_binary(message) do
-    map_exception(__MODULE__, message)
+    map_exception_message(__MODULE__, message)
   end
 
-  defp map_exception(which, message \\ nil) do
-    {exception, default_message} =
-      case Map.get(exceptions(), which) do
-        nil ->
-          Map.get(exceptions(), __MODULE__, {__MODULE__, "unknown exception"})
+  defp map_exception(which, type \\ nil) when is_atom(type) do
+    {exception, message} = get_exception(which, type)
 
-        the_exception ->
-          the_exception
-      end
+    map_exception_message(exception, message)
+  end
 
+  defp map_exception_message(exception, message) do
     exception
     |> Map.from_struct()
-    |> Map.put(:message, message || default_message)
+    |> Map.put(:message, message)
     |> Map.put(:__struct__, exception)
   end
 
   def exceptions do
     %{
-      "#{__MODULE__}.Header": {Header, "missing token in the requrest header"},
-      "#{__MODULE__}.Mismatch": {Mismatch, "tokens mismatch"},
-      "#{__MODULE__}.Session": {Session, "missing token in the session"},
-      "#{__MODULE__}.Store": {Store, "missing token in the store"},
-      "#{__MODULE__}": {__MODULE__, "invalid token"}
+      "#{__MODULE__}.HeaderException":
+        {HeaderException, [default: "missing token in the requrest header"]},
+      "#{__MODULE__}.MismatchException": {MismatchException, [default: "tokens mismatch"]},
+      "#{__MODULE__}.SessionException":
+        {SessionException,
+         [default: "missing token in the session", missing_id: "missing id in the session"]},
+      "#{__MODULE__}.StoreException": {StoreException, [default: "no store is set"]},
+      "#{__MODULE__}": {__MODULE__, [default: "invalid token"]}
     }
+  end
+
+  defp get_exception(which, type) do
+    {exception, messages} = Map.get(exceptions(), which)
+    IO.puts("#{inspect(exception)} #{inspect(messages)}")
+
+    message =
+      if type != nil && Keyword.has_key?(messages, type) do
+        Keyword.get(messages, type)
+      else
+        Keyword.get(messages, :default, "unknown exception")
+      end
+
+    {exception, message}
   end
 end

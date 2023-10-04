@@ -136,7 +136,7 @@ defmodule CsrfPlus.CsrfPlusTest do
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
       conn = build_session_req_conn(:post)
 
-      assert_raise CsrfPlus.Exception.Session, fn ->
+      assert_raise CsrfPlus.Exception.SessionException, fn ->
         CsrfPlus.call(conn, csrf_config)
       end
     end
@@ -145,7 +145,7 @@ defmodule CsrfPlus.CsrfPlusTest do
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
       conn = build_session_req_conn(:post)
 
-      assert_raise CsrfPlus.Exception.Header, fn ->
+      assert_raise CsrfPlus.Exception.HeaderException, fn ->
         conn
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> CsrfPlus.call(csrf_config)
@@ -156,7 +156,7 @@ defmodule CsrfPlus.CsrfPlusTest do
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
       conn = build_session_req_conn(:post, true)
 
-      assert_raise CsrfPlus.Exception.Store, fn ->
+      assert_raise CsrfPlus.Exception.StoreException, fn ->
         conn
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
         |> CsrfPlus.call(csrf_config)
@@ -168,7 +168,7 @@ defmodule CsrfPlus.CsrfPlusTest do
       Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
 
-      assert_raise CsrfPlus.Exception.Session, fn ->
+      assert_raise CsrfPlus.Exception.SessionException, fn ->
         :post
         |> build_session_conn()
         |> Plug.Conn.fetch_session()
@@ -183,7 +183,7 @@ defmodule CsrfPlus.CsrfPlusTest do
       Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
 
-      assert_raise CsrfPlus.Exception.Mismatch, fn ->
+      assert_raise CsrfPlus.Exception.MismatchException, fn ->
         :post
         |> build_session_req_conn(true)
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())
@@ -210,7 +210,7 @@ defmodule CsrfPlus.CsrfPlusTest do
       Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
       csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
 
-      assert_raise CsrfPlus.Exception.Mismatch, fn ->
+      assert_raise CsrfPlus.Exception.MismatchException, fn ->
         :post
         |> build_session_req_conn(true)
         |> Plug.Conn.put_session(:access_id, CsrfPlus.OkStoreMock.access_id())

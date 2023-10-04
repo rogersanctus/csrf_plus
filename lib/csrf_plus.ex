@@ -95,10 +95,10 @@ defmodule CsrfPlus do
 
     cond do
       is_nil(access_id) ->
-        raise CsrfPlus.Exception, {CsrfPlus.Exception.Session, "missing access_id in the session"}
+        raise CsrfPlus.Exception, {CsrfPlus.Exception.SessionException, :missing_id}
 
       header_token == nil ->
-        raise CsrfPlus.Exception, CsrfPlus.Exception.Header
+        raise CsrfPlus.Exception, CsrfPlus.Exception.HeaderException
 
       true ->
         store = Map.get(opts, :store)
@@ -110,7 +110,7 @@ defmodule CsrfPlus do
   defp check_token_store(_conn, nil, _to_check) do
     Logger.debug("CsrfPlus: No token store configured")
 
-    raise CsrfPlus.Exception, {CsrfPlus.Exception.Store, "no token store configured"}
+    raise CsrfPlus.Exception, CsrfPlus.Exception.StoreException
   end
 
   defp check_token_store(conn, store, {opts, access_id, header_token}) do
@@ -123,14 +123,14 @@ defmodule CsrfPlus do
       session_token == nil ->
         Logger.debug("Missing token in the request session")
 
-        raise CsrfPlus.Exception, CsrfPlus.Exception.Session
+        raise CsrfPlus.Exception, CsrfPlus.Exception.SessionException
 
       session_token != store_token ->
         Logger.debug(
           "Token mismatch session:#{inspect(session_token)} != store:#{inspect(store_token)}"
         )
 
-        raise CsrfPlus.Exception, CsrfPlus.Exception.Mismatch
+        raise CsrfPlus.Exception, CsrfPlus.Exception.MismatchException
 
       true ->
         result = Token.verify(header_token)
@@ -144,7 +144,7 @@ defmodule CsrfPlus do
         "Token mismatch: verified_token:#{inspect(verified_token)} != store_token:#{inspect(store_token)}"
       )
 
-      raise CsrfPlus.Exception, CsrfPlus.Exception.Mismatch
+      raise CsrfPlus.Exception, CsrfPlus.Exception.MismatchException
     else
       conn
     end
