@@ -39,7 +39,11 @@ defmodule CsrfPlus.Exception do
     map_exception_message(__MODULE__, message)
   end
 
-  def csrf_plus_exception?(exception) do
+  def csrf_plus_exception?(%{__exception__: true, __struct__: exception}) do
+    csrf_plus_exception?(exception)
+  end
+
+  def csrf_plus_exception?(exception) when is_atom(exception) do
     Map.has_key?(exceptions(), exception)
   end
 
