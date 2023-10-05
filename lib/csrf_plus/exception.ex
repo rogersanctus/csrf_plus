@@ -71,7 +71,6 @@ defmodule CsrfPlus.Exception do
 
   defp get_exception(which, type) do
     {exception, messages} = Map.get(exceptions(), which)
-    IO.puts("#{inspect(exception)} #{inspect(messages)}")
 
     message =
       if type != nil && Keyword.has_key?(messages, type) do
