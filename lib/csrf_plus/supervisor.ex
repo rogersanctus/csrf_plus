@@ -12,12 +12,9 @@ defmodule CsrfPlus.Supervisor do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
 
-  def init(
-        [token_max_age: token_max_age] =
-          _init_arg
-      ) do
+  def init(init_arg) do
     children = [
-      {CsrfPlus.Store.Manager, [token_max_age: token_max_age]}
+      {CsrfPlus.Store.Manager, init_arg}
     ]
 
     config = Application.get_env(:csrf_plus, CsrfPlus, [])
