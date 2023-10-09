@@ -134,8 +134,12 @@ defmodule CsrfPlus.Store.MemoryDb do
     state = %{
       state
       | db:
-          Enum.reject(db, fn entry ->
-            checking_time > entry.created_at + max_age
+          Enum.map(db, fn entry ->
+            if checking_time > entry.created_at + max_age do
+              Map.put(entry, :expired?, true)
+            else
+              entry
+            end
           end)
     }
 

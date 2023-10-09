@@ -2,6 +2,7 @@ defmodule CsrfPlus do
   @moduledoc false
   @behaviour Plug
 
+  alias CsrfPlus.UserAccess
   alias CsrfPlus.Token
   alias CsrfPlus.UserAccessInfo
   require Logger
@@ -19,6 +20,8 @@ defmodule CsrfPlus do
 
     allowed_methods = Keyword.get(opts, :allowed_methods, @non_csrf_request_methods)
 
+    error_mapper = Keyword.get(opts, :error_mapper, CsrfPlus.ErrorMapper)
+
     store =
       :csrf_plus
       |> Application.get_env(CsrfPlus, [])
@@ -27,6 +30,7 @@ defmodule CsrfPlus do
     %{
       csrf_key: csrf_key,
       allowed_methods: allowed_methods,
+      error_mapper: error_mapper,
       store: store
     }
   end
@@ -38,17 +42,48 @@ defmodule CsrfPlus do
   def call(%Plug.Conn{} = conn, opts) do
     allowed_method? = allowed_method?(conn, opts)
 
-    conn
-    |> put_private(
-      :plug_csrf_plus,
-      %{
-        put_session_token: fn conn, token ->
-          csrf_token = opts.csrf_key
-          Plug.Conn.put_session(conn, csrf_token, token)
+    try do
+      conn
+      |> put_private(
+        :plug_csrf_plus,
+        %{
+          put_session_token: fn conn, token ->
+            csrf_token = opts.csrf_key
+            Plug.Conn.put_session(conn, csrf_token, token)
+          end
+        }
+      )
+      |> check_token(allowed_method?, opts)
+    rescue
+      exception ->
+        if CsrfPlus.Exception.csrf_plus_exception?(exception) do
+          error_mapper = opts.error_mapper
+
+          # Ensure the configured error mapper module is compiled
+          # BEWARE as this function call may lead to deadlocks.
+          module_compiled = Code.ensure_compiled(error_mapper)
+
+          if match?({:module, _}, module_compiled) &&
+               Kernel.function_exported?(error_mapper, :map, 1) do
+            {status_code, error} = error_mapper.map(exception)
+
+            # After any CSRF exception, must clear session and return the mapped error and status code
+            conn
+            |> delete_session(:access_id)
+            |> delete_session(opts.csrf_key)
+            |> send_resp(status_code, Jason.encode!(error))
+            |> halt()
+          else
+            Logger.debug(
+              "The given error_mapper #{inspect(error_mapper)} does not exist or doesn't implements the map/1 function"
+            )
+
+            raise exception
+          end
+        else
+          raise exception
         end
-      }
-    )
-    |> check_token(allowed_method?, opts)
+    end
   end
 
   def get_user_info(conn) do
@@ -124,6 +159,16 @@ defmodule CsrfPlus do
         Logger.debug("Missing token in the request session")
 
         raise CsrfPlus.Exception, CsrfPlus.Exception.SessionException
+
+      store_access == nil ->
+        Logger.debug("The access with id: #{access_id} was not found")
+
+        raise CsrfPlus.Exception, {CsrfPlus.Exception.StoreException, :token_not_found}
+
+      match?(%UserAccess{expired?: true}, store_access) ->
+        Logger.debug("The access with id: #{access_id} has expired")
+
+        raise CsrfPlus.Exception, {CsrfPlus.Exception.StoreException, :token_expired}
 
       session_token != store_token ->
         Logger.debug(

@@ -68,7 +68,13 @@ defmodule CsrfPlus.Exception do
       "#{__MODULE__}.SessionException":
         {SessionException,
          [default: "missing token in the session", missing_id: "missing id in the session"]},
-      "#{__MODULE__}.StoreException": {StoreException, [default: "no store is set"]},
+      "#{__MODULE__}.StoreException":
+        {StoreException,
+         [
+           default: "no store is set",
+           token_not_found: "token was not found",
+           token_expired: "token has expired"
+         ]},
       "#{__MODULE__}": {__MODULE__, [default: "invalid token"]}
     }
   end

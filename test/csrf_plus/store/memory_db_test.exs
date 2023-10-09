@@ -36,6 +36,9 @@ defmodule CsrfPlus.Store.MemoryDbTest do
       assert Enum.count(all_accesses) == 1
       store_access = hd(all_accesses)
       assert match?(^access, store_access)
+
+      # New tokens are not expired by default
+      refute store_access.expired?
     end
 
     test "if accesses are stored correctly" do
@@ -152,7 +155,7 @@ defmodule CsrfPlus.Store.MemoryDbTest do
       assert match?({:error, :invalid_param}, delete_result)
     end
 
-    test "if all dead accesses are deleted when :delete_dead_accesses/1 is called" do
+    test "if all dead accesses are flagged as expired after :delete_dead_accesses/1 is called" do
       MemoryDb.start_link([])
 
       # 100 milliseconds
@@ -202,14 +205,24 @@ defmodule CsrfPlus.Store.MemoryDbTest do
 
       all_accesses_after_delete = MemoryDb.all_accesses()
 
-      assert Enum.count(all_accesses_after_delete) == 2
+      # Even after deleting all dead accesses, the number of accesses should be the same
+      # as the dead accesses are only flagged as expired
+      assert Enum.count(all_accesses_after_delete) == 4
 
-      assert Enum.all?(all_accesses_after_delete, fn access ->
+      # There must be two expired accesses
+      assert Enum.count(all_accesses_after_delete, fn access ->
+               access.expired?
+             end) == 2
+
+      non_expired_accesses =
+        Enum.reject(all_accesses_after_delete, fn entry -> entry.expired? end)
+
+      assert Enum.all?(non_expired_accesses, fn access ->
                almost_checking_time <= access.created_at + max_age
              end)
     end
 
-    test "if no access is deleted after :delete_dead_accesses/1 is called and all accesses are healthy" do
+    test "if no access is flagged as expired after :delete_dead_accesses/1 is called and all accesses are healthy" do
       MemoryDb.start_link([])
 
       # 100 milliseconds
@@ -249,6 +262,7 @@ defmodule CsrfPlus.Store.MemoryDbTest do
       all_accesses_after_delete = MemoryDb.all_accesses()
 
       assert Enum.count(all_accesses_after_delete) == Enum.count(all_raw)
+      assert Enum.count(all_accesses_after_delete, fn access -> access.expired? == false end)
     end
   end
 end
