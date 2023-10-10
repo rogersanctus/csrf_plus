@@ -35,17 +35,19 @@ defmodule CsrfPlus.Exception do
   `&exception/1` function with the message in `type`.
 
   ## Examples
-     iex(1)> raise CsrfPlus.Exception
-     ** (CsrfPlus.Exception) invalid token
 
-     iex(2)> raise CsrfPlus.Exception, "custom message"
-     ** (CsrfPlus.Exception) custom message
+       iex> raise CsrfPlus.Exception
+       ** (CsrfPlus.Exception) invalid token
 
-     iex(3)> raise CsrfPlus.Exception, CsrfPlus.Exception.StoreException
-     ** (CsrfPlus.Exception.StoreException) no store is set
+       iex> raise CsrfPlus.Exception, "custom message"
+       ** (CsrfPlus.Exception) custom message
 
-     iex(4)> raise CsrfPlus.Exception, {CsrfPlus.Exception.StoreException, :token_not_found}
-     ** (CsrfPlus.Exception.StoreException) token was not found
+       iex> raise CsrfPlus.Exception, CsrfPlus.Exception.StoreException
+       ** (CsrfPlus.Exception.StoreException) no store is set
+
+       iex> raise CsrfPlus.Exception, {CsrfPlus.Exception.StoreException, :token_not_found}
+       ** (CsrfPlus.Exception.StoreException) token was not found
+
   """
 
   @impl Exception
