@@ -1,5 +1,7 @@
 defmodule CsrfPlus.Exception do
-  @moduledoc false
+  @moduledoc """
+  CsrfPlus exceptions.
+  """
 
   defexception [:message]
 
@@ -31,7 +33,21 @@ defmodule CsrfPlus.Exception do
 
   When a tuple is passed in the format `{which, type}` an exception with name `which` will be created having the message set in the
   `&exception/1` function with the message in `type`.
+
+  ## Examples
+     iex(1)> raise CsrfPlus.Exception
+     ** (CsrfPlus.Exception) invalid token
+
+     iex(2)> raise CsrfPlus.Exception, "custom message"
+     ** (CsrfPlus.Exception) custom message
+
+     iex(3)> raise CsrfPlus.Exception, CsrfPlus.Exception.StoreException
+     ** (CsrfPlus.Exception.StoreException) no store is set
+
+     iex(4)> raise CsrfPlus.Exception, {CsrfPlus.Exception.StoreException, :token_not_found}
+     ** (CsrfPlus.Exception.StoreException) token was not found
   """
+
   @impl Exception
   def exception([]) do
     map_exception(__MODULE__)
