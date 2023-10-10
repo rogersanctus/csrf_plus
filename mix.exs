@@ -49,9 +49,11 @@ defmodule CsrfPlus.MixProject do
       {:telemetry, "~> 1.0"},
       {:uuid, "~> 1.1"},
       {:jason, "~> 1.4"},
-      {:mix_test_watch, git: "https://github.com/rogersanctus/mix-test.watch.git", only: [:test]},
+      {:mix_test_watch,
+       git: "https://github.com/rogersanctus/mix-test.watch.git", only: [:test], runtime: false},
       {:mox, "~> 1.0", only: :test},
-      {:ex_doc, "~> 0.30", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.30", only: :dev, runtime: false},
+      {:credo, "~> 1.7", only: :dev, runtime: false}
     ]
   end
 

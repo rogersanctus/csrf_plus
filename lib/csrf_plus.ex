@@ -83,10 +83,10 @@ defmodule CsrfPlus do
               "The given error_mapper #{inspect(error_mapper)} does not exist or doesn't implements the map/1 function"
             )
 
-            raise exception
+            reraise exception, __STACKTRACE__
           end
         else
-          raise exception
+          reraise exception, __STACKTRACE__
         end
     end
   end

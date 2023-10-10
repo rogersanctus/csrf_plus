@@ -1,4 +1,6 @@
 defmodule CsrfPlus.Fixtures do
+  @moduledoc false
+
   def token_config_fixture(other_options \\ []) do
     options = [
       secret_key:
