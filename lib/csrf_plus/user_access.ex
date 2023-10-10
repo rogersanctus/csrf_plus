@@ -18,7 +18,7 @@ defmodule CsrfPlus.UserAccess do
           token: String.t(),
           access_id: String.t(),
           expired?: boolean(),
-          user_info: UserAccessInfo.t(),
+          user_info: UserAccessInfo.t() | nil,
           created_at: non_neg_integer() | nil
         }
 end
