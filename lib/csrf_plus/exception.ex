@@ -29,10 +29,10 @@ defmodule CsrfPlus.Exception do
   If a string is passed it will be used as the exception message.
 
   If it's an exception module name (an atom) an exception will be created from it with the default message set in the
-  `&exceptions/0` function.
+  `exceptions/0` function.
 
   When a tuple is passed in the format `{which, type}` an exception with name `which` will be created having the message set in the
-  `&exception/1` function with the message in `type`.
+  `exception/1` function with the message in `type`.
 
   ## Examples
 
