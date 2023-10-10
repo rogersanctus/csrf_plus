@@ -16,7 +16,14 @@ defmodule CsrfPlus.MixProject do
       ],
       # Hex
       package: package(),
-      description: @description
+      description: @description,
+      # Docs
+      name: "CsrfPlus",
+      source_url: "https://github.com/rogersanctus/csrf_plus",
+      docs: [
+        main: "readme",
+        extras: ["README.md"]
+      ]
     ]
   end
 
@@ -43,7 +50,8 @@ defmodule CsrfPlus.MixProject do
       {:uuid, "~> 1.1"},
       {:jason, "~> 1.4"},
       {:mix_test_watch, git: "https://github.com/rogersanctus/mix-test.watch.git", only: [:test]},
-      {:mox, "~> 1.0", only: :test}
+      {:mox, "~> 1.0", only: :test},
+      {:ex_doc, "~> 0.30", only: :dev, runtime: false}
     ]
   end
 

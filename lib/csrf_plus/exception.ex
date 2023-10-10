@@ -19,6 +19,19 @@ defmodule CsrfPlus.Exception do
     defexception [:message]
   end
 
+  @doc """
+  Creates a new CsrfPlus exception based on the given params during the `Kernel.raise/2` call.
+
+  Passing no param will create a `CsrfPlus.Exception`.
+
+  If a string is passed it will be used as the exception message.
+
+  If it's an exception module name (an atom) an exception will be created from it with the default message set in the
+  `&exceptions/0` function.
+
+  When a tuple is passed in the format `{which, type}` an exception with name `which` will be created having the message set in the
+  `&exception/1` function with the message in `type`.
+  """
   @impl Exception
   def exception([]) do
     map_exception(__MODULE__)
@@ -39,6 +52,10 @@ defmodule CsrfPlus.Exception do
     map_exception_message(__MODULE__, message)
   end
 
+  @doc """
+  Checks if the given exception is a CsrfPlus exception.
+  Returns a boolean true if the given exception is a CsrfPlus.
+  """
   def csrf_plus_exception?(%{__exception__: true, __struct__: exception}) do
     csrf_plus_exception?(exception)
   end
@@ -60,6 +77,7 @@ defmodule CsrfPlus.Exception do
     |> Map.put(:__struct__, exception)
   end
 
+  @doc "Retrieve all the CsrfPlus exceptions with their corresponding names and messages"
   def exceptions do
     %{
       "#{__MODULE__}.HeaderException":

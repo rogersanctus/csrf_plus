@@ -1,44 +1,6 @@
 defmodule CsrfPlus do
   @moduledoc """
   A CSRF (Cross-Site Request Forgery) protection Plug with accesses storing support.
-
-  Sometimes you need more than a per-request CSRF tokens. This is why this Plug was created.
-  This plug supports storing tokens in any kind of storage system. And all you have to do is to
-    implement its 'CsrfPlus.Store.Behaviour'. By doing so you will provide ways to put, get,
-    delete and other operations of accesses on that 'Store'.
-
-  # How it works?
-    When a request is made, this plug will check the request method type. Request methods intended
-    for reading data (GET, HEAD, OPTIONS) will be ignored, by default. The other requests will be
-    checked against the CSRF token stored in the connection session, in the 'x-csrf-token' header
-    and the one stored in the configured Store. All those tokens must match to a token be
-    considered valid. The first checkings are to ensure the tokens are given. Then, the token in
-    the session and the one in the Store are verified against each other. Later, the token on the
-    'x-csrf-token' header that is a signed version of the generated token with the configured secret
-    key will be verified against that secret key. If this verification succeeds, the returned verified
-    token will be checked against the token in the store. If this verification also succeeds, the
-    connection continues normally. Otherwise, an exception will be raised and be used to make the
-    error message and response status code.
-
-  # Usage
-    You can use CsrfPlus as a plug in your endpoint, router or in some plug pipeline. As this plug
-    uses connection session, it must be plugged after `Plug.Session` and `Plug.Conn.fetch_session`.
-    Also, this plug won't check requests origin. So, to have safer connections, use some CORS lib of
-    your choice before CsrfPlus. A good choice is the [Corsica](https://github.com/whatyouhide/corsica) project.
-    
-  # How to install?
-    Simple, add :csrf_plus to you mix dependencies:
-
-    `mix.exs:`
-    ```elixir
-    def deps do
-      [
-        {:plug, "~> 1.0"},
-        {:csrf_plus, "~> 0.1"}
-      ]
-    ```
-
-    And then run `$ mix deps.get`.
   """
 
   @behaviour Plug
@@ -56,6 +18,7 @@ defmodule CsrfPlus do
 
   import Plug.Conn
 
+  @doc false
   def init(opts \\ []) do
     csrf_key = Keyword.get(opts, :csrf_key, @default_csrf_key)
 
@@ -76,6 +39,7 @@ defmodule CsrfPlus do
     }
   end
 
+  @doc false
   def call(%Plug.Conn{halted: true} = conn, _opts) do
     conn
   end
@@ -127,6 +91,7 @@ defmodule CsrfPlus do
     end
   end
 
+  @doc "Digs into the connection data to make an user access information struct."
   def get_user_info(conn) do
     %UserAccessInfo{
       ip: get_conn_ip(conn),
@@ -134,10 +99,12 @@ defmodule CsrfPlus do
     }
   end
 
+  @doc "The default max age for a token"
   def default_token_max_age do
     @default_token_max_age
   end
 
+  @doc "Uses the plug configuration to put a token into the session"
   def put_session_token(%Plug.Conn{private: private} = conn, token) do
     state = Map.get(private, :plug_csrf_plus, %{})
     fun = Map.get(state, :put_session_token, nil)
@@ -157,11 +124,11 @@ defmodule CsrfPlus do
     method in allowed_methods
   end
 
-  def check_token(%Plug.Conn{} = conn, true = _allowed_method?, _opts) do
+  defp check_token(%Plug.Conn{} = conn, true = _allowed_method?, _opts) do
     conn
   end
 
-  def check_token(%Plug.Conn{} = conn, false = _allowed_method?, opts) do
+  defp check_token(%Plug.Conn{} = conn, false = _allowed_method?, opts) do
     access_id = get_session(conn, :access_id)
 
     header_token =
