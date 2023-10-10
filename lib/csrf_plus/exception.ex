@@ -80,19 +80,6 @@ defmodule CsrfPlus.Exception do
     Map.has_key?(exceptions(), exception)
   end
 
-  defp map_exception(which, type \\ nil) when is_atom(type) do
-    {exception, message} = get_exception(which, type)
-
-    map_exception_message(exception, message)
-  end
-
-  defp map_exception_message(exception, message) do
-    exception
-    |> Map.from_struct()
-    |> Map.put(:message, message)
-    |> Map.put(:__struct__, exception)
-  end
-
   @doc "Retrieve all the CsrfPlus exceptions with their corresponding names and messages"
   def exceptions do
     %{
@@ -111,6 +98,19 @@ defmodule CsrfPlus.Exception do
          ]},
       "#{__MODULE__}": {__MODULE__, [default: "invalid token"]}
     }
+  end
+
+  defp map_exception(which, type \\ nil) when is_atom(type) do
+    {exception, message} = get_exception(which, type)
+
+    map_exception_message(exception, message)
+  end
+
+  defp map_exception_message(exception, message) do
+    exception
+    |> Map.from_struct()
+    |> Map.put(:message, message)
+    |> Map.put(:__struct__, exception)
   end
 
   defp get_exception(which, type) do
