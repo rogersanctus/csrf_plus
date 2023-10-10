@@ -14,16 +14,16 @@ defmodule CsrfPlus.Store.Manager do
 
   @doc """
   Starts the Manager.
-    
+
     > #### Note {: .info}
     > It's preferable to start this by the `CsrfPlus.Supervisor`.
 
   `init_arg` - Is a Keyword with the options to be used.
 
   ## Options
-    
+
     * `:token_max_age` - Maximum age of the tokens before they expires. It's a non-negative integer with the age in milliseconds. Defaults to one day.
-    
+
     * `:check_age_time` - How often to check the age of the tokens. Non-negative integer with the time in milliseconds. Defaults to one hour.
   """
   def start_link(init_arg) when is_list(init_arg) do
