@@ -40,5 +40,22 @@ defmodule CsrfPlus.Store.Behaviour do
   """
   @callback delete_dead_accesses(max_age :: non_neg_integer()) :: :ok | {:error, term()}
 
-  @optional_callbacks [all_accesses: 0, delete_dead_accesses: 1]
+  @doc """
+  A function to return the user access struct for a given connection and raw access map.
+
+  ## Params
+  * `conn` - The connection struct.
+  * `raw_access` - A map with the required access information.
+
+  ### Raw Access
+  * `:access_id` - The id that identifies the access.
+  * `:token` - The access token.
+
+  """
+  @callback conn_to_access(
+              conn :: Plug.Conn.t(),
+              raw_access :: %{access_id: String.t(), token: String.t()}
+            ) :: UserAccess.t()
+
+  @optional_callbacks [all_accesses: 0, delete_dead_accesses: 1, conn_to_access: 2]
 end
