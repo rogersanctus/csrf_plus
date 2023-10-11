@@ -207,7 +207,9 @@ defmodule CsrfPlus do
 
   @doc """
   Put the token in the store. If a `conn_to_access` function is implemented in the
-  configured store, that function will be called with the given params.
+  configured store, that function will be called with the given params to generate
+  the `CsrfPlus.UserAccess` to be put into the store. Also, have a look at `CsrfPlus.Store.Behaviour`
+  to see more about `conn_to_access` callback.
 
   ## Params
   * `conn` - the connection struct.
