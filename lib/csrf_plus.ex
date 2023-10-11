@@ -52,9 +52,38 @@ defmodule CsrfPlus do
       |> put_private(
         :plug_csrf_plus,
         %{
-          put_session_token: fn conn, token ->
+          put_session_token: fn conn, access_id, token ->
             csrf_token = opts.csrf_key
-            Plug.Conn.put_session(conn, csrf_token, token)
+
+            conn =
+              if access_id == nil do
+                conn
+              else
+                put_session(conn, :access_id, access_id)
+              end
+
+            put_session(conn, csrf_token, token)
+          end,
+          put_header_token: fn conn, _access_id, signed_token ->
+            Plug.Conn.put_resp_header(conn, "x-csrf-token", signed_token)
+          end,
+          put_store_token: fn conn, access_id, token ->
+            store = Map.get(opts, :store)
+
+            if store != nil do
+              access =
+                if Kernel.function_exported?(store, :conn_to_access, 2) do
+                  store.conn_to_access(conn, %{token: token, access_id: access_id})
+                else
+                  %UserAccess{}
+                  |> Map.put(:access_id, access_id)
+                  |> Map.put(:token, token)
+                end
+
+              store.put_access(access)
+            end
+
+            conn
           end
         }
       )
@@ -104,16 +133,127 @@ defmodule CsrfPlus do
     @default_token_max_age
   end
 
-  @doc "Uses the plug configuration to put a token into the session"
-  def put_session_token(%Plug.Conn{private: private} = conn, token) do
+  @doc """
+  Uses the plug configuration to put the token and its signed version
+  into the store, session and `x-csrf-token` header.
+
+  ## Params
+    * `conn` - The connection struct.
+    * `opts` - The options.
+
+  ### Options
+    The options is a Keyword with the follwing keys:
+
+    * `:access_id` - the id of the access. If none is given CsrfPlus will generate one.
+    * `:token_tuple` - a tuple with the token and its signed version in the format `{token, signed_token}`. This option is required.
+    * `:excludes` - a list of tokens to exclude. A excluded token will not
+    be put into its corresponding store, session or header.
+
+  ### Excludes list
+    * `:session` - do not put the session token.
+    * `:header` - do not put the header token.
+    * `:store` - do not put the store token.
+
+  """
+  def put_token(%Plug.Conn{} = conn, opts \\ []) do
+    access_id = Keyword.get(opts, :access_id, UUID.uuid4())
+
+    token_tuple =
+      Keyword.get(opts, :token_tuple) ||
+        raise CsrfPlus.Exception,
+              "CsrfPlus.put_token/2 options requires a :token_tuple to be given"
+
+    {token, signed_token} = token_tuple
+
+    excludes = Keyword.get(opts, :excludes, [])
+    excludes_session_token? = Keyword.get(excludes, :session, false)
+    excludes_header_token? = Keyword.get(excludes, :header, false)
+    excludes_store_token? = Keyword.get(excludes, :store, false)
+
+    conn
+    |> put_a_token_optional(access_id, token, :session, excludes_session_token?)
+    |> put_a_token_optional(access_id, signed_token, :header, excludes_header_token?)
+    |> put_a_token_optional(access_id, token, :store, excludes_store_token?)
+  end
+
+  @doc """
+  Put the token and the given `access_id` in the session. Uses the conn struct to
+  determine the needed keys.
+
+  ## Params
+  * `conn` - the connection struct.
+  * `token` - the CSRF unsigned token.
+  * `access_id` - the access id. If none is given no access id is put in the session. Defaults to nil.
+
+  """
+  def put_session_token(conn, token, access_id \\ nil) do
+    put_a_token(conn, access_id, token, :session)
+  end
+
+  @doc """
+  Put the token in the header. It uses the conn struct to determine the header name.
+
+  ## Params
+  * `conn` - the connection struct.
+  * `signed_token` - the signed version of the CSRF token.
+
+  """
+  def put_header_token(conn, signed_token) do
+    put_a_token(conn, nil, signed_token, :header)
+  end
+
+  @doc """
+  Put the token in the store. If a `conn_to_access` function is implemented in the
+  configured store, that function will be called with the given params.
+
+  ## Params
+  * `conn` - the connection struct.
+  * `token` - the CSRF unsigned token.
+  * `access_id` - the access id. It's required here because a token must be associeted with an identifier.
+
+  """
+  def put_store_token(_conn, _token, nil),
+    do:
+      raise(
+        CsrfPlus.Exception,
+        "CsrfPlus.put_store_token/3 requires the access_id parameter to be given"
+      )
+
+  def put_store_token(conn, token, access_id) do
+    put_a_token(conn, access_id, token, :store)
+  end
+
+  defp put_a_token_optional(conn, access_id, token, what, false) do
+    put_a_token(conn, access_id, token, what)
+  end
+
+  defp put_a_token_optional(conn, _access_id, _token, _what, true) do
+    conn
+  end
+
+  defp put_a_token(%Plug.Conn{private: private} = conn, access_id, token, what) do
     state = Map.get(private, :plug_csrf_plus, %{})
-    fun = Map.get(state, :put_session_token, nil)
+    put_session_token = Map.get(state, :put_session_token, nil)
+    put_header_token = Map.get(state, :put_header_token, nil)
+    put_store_token = Map.get(state, :put_store_token, nil)
+
+    fun =
+      case what do
+        :session ->
+          put_session_token
+
+        :header ->
+          put_header_token
+
+        :store ->
+          put_store_token
+      end
 
     if fun == nil do
       raise CsrfPlus.Exception,
-            "CsrfPlus.put_session_token/2 must be called after CsrfPlus is plugged"
+            "CsrfPlus.put_token/3 must be called after CsrfPlus is plugged"
     else
-      fun.(conn, token)
+      fun.(conn, access_id, token)
     end
   end
 
