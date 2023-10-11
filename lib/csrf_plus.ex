@@ -137,6 +137,9 @@ defmodule CsrfPlus do
   Uses the plug configuration to put the token and its signed version
   into the store, session and `x-csrf-token` header.
 
+  This function uses the functions: `put_session_token/3`, `put_header_token/2` and `put_store_token/3`
+  base functions under the hood. So, you can have a look at them for more information about how this function works.
+
   ## Params
     * `conn` - The connection struct.
     * `opts` - The options.

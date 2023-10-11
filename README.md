@@ -25,11 +25,15 @@ uses connection session, it must be plugged after `Plug.Session` and `Plug.Conn.
 Also, this plug won't check requests origin. So, to have safer connections, use some CORS lib of
 your choice before CsrfPlus. A good choice is the [Corsica](https://github.com/whatyouhide/corsica) project.
 
-One of the princeples of this plug is to not do any "dark magic". As so, you must generate the token and its signed version,
+One of the princeples of this plug is to avoid the most to do "dark magic". As so, you must generate the token and its signed version,
 provide an `:access_id` and normal token in the user session and, store both the token and the `access_id` in the
-configure store and, finally, include the signed token in the `x-csrf-token` header. Usually, you do this step in
+configured store and, finally, include the signed token in the `x-csrf-token` header. Usually, you do this step in
 response to a GET method request, thinking of a JSON API. But you can also use this plug with heex template
 pages/components. Examples on that will be released soon.
+
+Anyway, we provide a helper function to get the tokens ready to be send in the response connection and stored
+in the configured store. This function is `CsrfPlus.put_token/2`. You will still need to generate, at least,
+the token and its signed version.
 
 When using CORS, remmember to add the `x-csrf-token` header to the allowed and exposed headers. Also enable/allow the
 session credentials.
