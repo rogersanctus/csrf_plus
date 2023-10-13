@@ -273,7 +273,7 @@ defmodule CsrfPlus do
     conn
   end
 
-  defp check_token(%Plug.Conn{} = conn, false = _allowed_method?, opts) do
+  defp check_token(%Plug.Conn{body_params: body_params} = conn, false = _allowed_method?, opts) do
     access_id = get_session(conn, :access_id)
 
     header_token =
@@ -281,17 +281,20 @@ defmodule CsrfPlus do
       |> get_req_header("x-csrf-token")
       |> Enum.at(0)
 
+    body_token = Map.get(body_params, "_csrf_token", nil)
+
     cond do
       is_nil(access_id) ->
         raise CsrfPlus.Exception, {CsrfPlus.Exception.SessionException, :missing_id}
 
-      header_token == nil ->
-        raise CsrfPlus.Exception, CsrfPlus.Exception.HeaderException
+      header_token == nil && body_token == nil ->
+        raise CsrfPlus.Exception, CsrfPlus.Exception.SignedException
 
       true ->
         store = Map.get(opts, :store)
+        signed_token = header_token || body_token
 
-        check_token_store(conn, store, {opts, access_id, header_token})
+        check_token_store(conn, store, {opts, access_id, signed_token})
     end
   end
 
@@ -301,7 +304,7 @@ defmodule CsrfPlus do
     raise CsrfPlus.Exception, CsrfPlus.Exception.StoreException
   end
 
-  defp check_token_store(conn, store, {opts, access_id, header_token}) do
+  defp check_token_store(conn, store, {opts, access_id, signed_token}) do
     csrf_key = Map.get(opts, :csrf_key, nil)
     store_access = store.get_access(access_id)
     store_token = Map.get(store_access || %{}, :token, nil)
@@ -331,7 +334,7 @@ defmodule CsrfPlus do
         raise CsrfPlus.Exception, CsrfPlus.Exception.MismatchException
 
       true ->
-        result = Token.verify(header_token)
+        result = Token.verify(signed_token)
         check_token_store_verified(conn, result, store_token)
     end
   end

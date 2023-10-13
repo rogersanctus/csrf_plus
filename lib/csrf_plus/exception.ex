@@ -5,7 +5,7 @@ defmodule CsrfPlus.Exception do
 
   defexception [:message]
 
-  defmodule HeaderException do
+  defmodule SignedException do
     defexception [:message]
   end
 
@@ -85,8 +85,12 @@ defmodule CsrfPlus.Exception do
   @doc "Retrieve all the CsrfPlus exceptions with their corresponding names and messages"
   def exceptions do
     %{
-      "#{__MODULE__}.HeaderException":
-        {HeaderException, [default: "missing token in the requrest header"]},
+      "#{__MODULE__}.SignedException":
+        {SignedException,
+         [
+           default:
+             "missing the signed token in the request. Either send it in the response header or response body."
+         ]},
       "#{__MODULE__}.MismatchException": {MismatchException, [default: "tokens mismatch"]},
       "#{__MODULE__}.SessionException":
         {SessionException,
