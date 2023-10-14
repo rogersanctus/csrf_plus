@@ -282,21 +282,29 @@ defmodule CsrfPlus do
     access_id = get_session(conn, :access_id)
 
     access =
-      store.get_access(access_id)
+      if access_id != nil do
+        store.get_access(access_id)
+      end
 
     if access == nil do
       CsrfPlus.Token.generate()
     else
       header_token = get_req_header(conn, "x-csrf-token") |> List.first()
 
-      case CsrfPlus.Token.verify(header_token) do
-        {:ok, signed} ->
-          {access.token, signed}
+      signed =
+        case header_token && CsrfPlus.Token.verify(header_token) do
+          {:ok, _signed} ->
+            header_token
 
-        {:error, _} ->
-          signed = CsrfPlus.Token.sign_token(access.token)
-          {access.token, signed}
-      end
+          {:error, _} ->
+            CsrfPlus.Token.sign_token(access.token)
+
+          # header_token is nil
+          nil ->
+            CsrfPlus.Token.sign_token(access.token)
+        end
+
+      {access.token, signed}
     end
   end
 

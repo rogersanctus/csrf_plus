@@ -427,6 +427,132 @@ defmodule CsrfPlus.CsrfPlusTest do
       assert session_access_id != nil
       assert store_access == nil
     end
+
+    test "if get_token_tuple/1 generate a new token tuple when the access_id is not on the session" do
+      test_token = "was generated here"
+
+      Fixtures.token_config_fixture(
+        token_generation_fn: fn ->
+          test_token
+        end
+      )
+
+      Mox.stub_with(CsrfPlus.StoreMock, CsrfPlus.OkStoreMock)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
+
+      conn =
+        build_session_conn(:get)
+        |> Plug.Conn.fetch_session()
+        |> CsrfPlus.call(CsrfPlus.init(csrf_key: :csrf_token))
+
+      {token, _signed_token} = CsrfPlus.get_token_tuple(conn)
+
+      assert token == test_token
+    end
+
+    test "if get_token_tuple/1 generates a new token tuple when an access is not found for a given access_id" do
+      test_token = "was generated here"
+
+      Fixtures.token_config_fixture(
+        token_generation_fn: fn ->
+          test_token
+        end
+      )
+
+      Mox.stub(CsrfPlus.StoreMock, :get_access, fn _ -> nil end)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
+
+      conn =
+        build_session_conn(:get)
+        |> Plug.Conn.fetch_session()
+        |> Plug.Conn.put_session(:access_id, "access_id")
+        |> CsrfPlus.call(CsrfPlus.init(csrf_key: :csrf_token))
+
+      {token, _signed_token} = CsrfPlus.get_token_tuple(conn)
+
+      assert token == test_token
+    end
+
+    test "if get_token_tuple/1 get a token from the store for the access_id and uses the signed token in the header" do
+      test_token = "store token"
+
+      Fixtures.token_config_fixture(
+        token_generation_fn: fn ->
+          "was generated here"
+        end
+      )
+
+      test_signed_token = CsrfPlus.Token.sign_token(test_token)
+
+      Mox.stub(CsrfPlus.StoreMock, :get_access, fn _ -> %{token: test_token} end)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
+
+      conn =
+        build_session_conn(:get)
+        |> Plug.Conn.fetch_session()
+        |> Plug.Conn.put_session(:access_id, "access_id")
+        |> Plug.Conn.put_req_header("x-csrf-token", test_signed_token)
+        |> CsrfPlus.call(CsrfPlus.init(csrf_key: :csrf_token))
+
+      {token, signed_token} = CsrfPlus.get_token_tuple(conn)
+
+      assert token == test_token
+      assert token != "was generated here"
+      assert signed_token == test_signed_token
+    end
+
+    test "if get_token_tuple/1 get a token from the store for the access_id but dont uses the token in the header when it's invalid" do
+      test_token = "store token"
+      test_signed_token = "wrong signed token"
+
+      Fixtures.token_config_fixture(
+        token_generation_fn: fn ->
+          "was generated here"
+        end
+      )
+
+      Mox.stub(CsrfPlus.StoreMock, :get_access, fn _ -> %{token: test_token} end)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
+
+      conn =
+        build_session_conn(:get)
+        |> Plug.Conn.fetch_session()
+        |> Plug.Conn.put_session(:access_id, "access_id")
+        |> Plug.Conn.put_req_header("x-csrf-token", test_signed_token)
+        |> CsrfPlus.call(CsrfPlus.init(csrf_key: :csrf_token))
+
+      {token, signed_token} = CsrfPlus.get_token_tuple(conn)
+
+      assert token == test_token
+      assert token != "was generated here"
+      assert signed_token != test_signed_token
+    end
+
+    test "if get_token_tuple/1 get a token from the store for the access_id but sign that token when the header token is not set" do
+      test_token = "store token"
+
+      Fixtures.token_config_fixture(
+        token_generation_fn: fn ->
+          "was generated here"
+        end
+      )
+
+      Mox.stub(CsrfPlus.StoreMock, :get_access, fn _ -> %{token: test_token} end)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.StoreMock)
+
+      conn =
+        build_session_conn(:get)
+        |> Plug.Conn.fetch_session()
+        |> Plug.Conn.put_session(:access_id, "access_id")
+        |> CsrfPlus.call(CsrfPlus.init(csrf_key: :csrf_token))
+
+      {token, signed_token} = CsrfPlus.get_token_tuple(conn)
+
+      assert token == test_token
+      assert token != "was generated here"
+      result = CsrfPlus.Token.verify(signed_token)
+      assert match?({:ok, ^token}, result)
+    end
   end
 
   describe "CsrfPlus validations" do
