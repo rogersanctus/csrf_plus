@@ -26,6 +26,8 @@ defmodule CsrfPlus do
 
     error_mapper = Keyword.get(opts, :error_mapper, CsrfPlus.ErrorMapper)
 
+    raise_exception? = Keyword.get(opts, :raise_exception?, false)
+
     store =
       :csrf_plus
       |> Application.get_env(CsrfPlus, [])
@@ -34,6 +36,7 @@ defmodule CsrfPlus do
     %{
       csrf_key: csrf_key,
       allowed_methods: allowed_methods,
+      raise_exception?: raise_exception?,
       error_mapper: error_mapper,
       store: store
     }
@@ -90,6 +93,12 @@ defmodule CsrfPlus do
       |> check_token(allowed_method?, opts)
     rescue
       exception ->
+        raise_exception? = Map.get(opts, :raise_exception?) == true
+
+        if raise_exception? do
+          reraise exception, __STACKTRACE__
+        end
+
         if CsrfPlus.Exception.csrf_plus_exception?(exception) do
           error_mapper = opts.error_mapper
 

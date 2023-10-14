@@ -139,9 +139,15 @@ The following options are available:
   * `:allowed_methods` - The requests methods that are ignored by the CSRF token validations.
 By defaut: `["GET", "HEAD", "OPTIONS"]`.
 
-  * `:error_mapper` - The module to be used to map exceptions to response status codes and error messages.
-There is a default module for that: `CsrfPlus.ErrorMapper`. But you can set your own module
-since it implements the `CsrfPlus.ErrorMapper` behaviour.
+  * `:raise_exception?` - If true, exceptions thrown by `CsrfPlus` will not be caught, but reraised. Set this to false
+  to use the `ErrorMapper` and have response error and status code set. Defaults to `false`.
+
+  * `:error_mapper` - The module to be used to map exceptions to response status codes and error messages. The connection is halted
+  after the error is set.
+
+    There is a default module for that: `CsrfPlus.ErrorMapper`. But you can set your own module
+    since it implements the `CsrfPlus.ErrorMapper` behaviour. The `ErrorMapper` `map` function will only be used when
+    the option `:raise_exception?` is set to false.
 
 ### Supervisor
 As the CSRF validation of this lib uses a store of tokens, it's a good practice to

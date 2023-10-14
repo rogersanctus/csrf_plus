@@ -112,6 +112,32 @@ defmodule CsrfPlus.CsrfPlusTest do
 
       refute new_conn.halted
     end
+
+    test "if an exception is thrown when :raise_exception? is set to true" do
+      config = CsrfPlus.init(raise_exception?: true)
+
+      conn =
+        :post
+        |> build_session_conn()
+        |> Plug.Conn.fetch_session()
+
+      assert_raise CsrfPlus.Exception.SessionException, fn ->
+        CsrfPlus.call(conn, config)
+      end
+    end
+
+    test "if an error is set in the response body when :raise_exception? is set to false" do
+      config = CsrfPlus.init()
+
+      conn =
+        :post
+        |> build_session_conn()
+        |> Plug.Conn.fetch_session()
+
+      conn = CsrfPlus.call(conn, config)
+
+      assert exception_from_conn(conn) == CsrfPlus.Exception.SessionException
+    end
   end
 
   describe "CsrfPlus public functions" do
