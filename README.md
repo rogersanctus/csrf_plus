@@ -33,7 +33,10 @@ pages/components. Examples on that will be released soon.
 
 Anyway, we provide a helper function to get the tokens ready to be send in the response connection and stored
 in the configured store. This function is `CsrfPlus.put_token/2`. You will still need to generate, at least,
-the token and its signed version.
+the token and its signed version. And to generate the token and its signed version you can use `CsrfPlus.Token.generate/0` that will
+give you back a new token tuple at every call, or you can use the `CsrfPlus.get_token_tuple/1` that uses the `conn` struct to try to reuse
+the token in the connection session or generate a new one when it's not possible. The use of the later function is prefferable when using
+_heex pages/components_.
 
 When using CORS, remmember to add the `x-csrf-token` header to the allowed and exposed headers. Also enable/allow the
 session credentials.
