@@ -25,21 +25,21 @@ defmodule CsrfPlus.TokenTest do
       refute raised
     end
 
-    test "if it raises an error when no secret key is given when generate is called" do
+    test "if it raises an error when no secret key is given when sign_token is called" do
       assert_raise RuntimeError, fn ->
-        CsrfPlus.Token.DefaultToken.generate()
+        CsrfPlus.Token.sign_token("token")
       end
     end
 
     test "if it raises an error when no secret key is given when verify is called" do
       assert_raise RuntimeError, fn ->
-        CsrfPlus.Token.DefaultToken.verify("signed")
+        CsrfPlus.Token.verify("signed")
       end
     end
 
     test "if it can generate a token" do
       Fixtures.token_config_fixture()
-      result = CsrfPlus.Token.DefaultToken.generate()
+      result = CsrfPlus.Token.generate()
 
       assert match?({_token, _signed}, result)
       {token, signed} = result
@@ -51,8 +51,8 @@ defmodule CsrfPlus.TokenTest do
     test "if it can verify a generated token" do
       Fixtures.token_config_fixture()
 
-      {token, signed} = CsrfPlus.Token.DefaultToken.generate()
-      result = CsrfPlus.Token.DefaultToken.verify(signed)
+      {token, signed} = CsrfPlus.Token.generate()
+      result = CsrfPlus.Token.verify(signed)
 
       assert match?({:ok, ^token}, result)
     end
@@ -60,16 +60,16 @@ defmodule CsrfPlus.TokenTest do
     test "if verify returns :error with reason in a tuple when the token is invalid" do
       Fixtures.token_config_fixture()
 
-      result = CsrfPlus.Token.DefaultToken.verify("invalid signed token")
+      result = CsrfPlus.Token.verify("invalid signed token")
 
       assert match?({:error, "invalid token"}, result)
     end
 
-    test "if the token generate function uses the token_generation_fn when it's set" do
+    test "if the generate_token function uses the token_generation_fn when it's set" do
       generation_fn = fn -> "token generated" end
       Fixtures.token_config_fixture(token_generation_fn: generation_fn)
 
-      {token, _} = CsrfPlus.Token.DefaultToken.generate()
+      token = CsrfPlus.Token.generate_token()
       assert token == "token generated"
     end
   end

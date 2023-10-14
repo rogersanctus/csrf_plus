@@ -262,6 +262,44 @@ defmodule CsrfPlus do
     end
   end
 
+  @doc """
+  Get a token from the connection session if it exists on the store or generate a new one otherwise.
+  This function will try to use the signed token from the header, if it's valid.
+
+  ## Params
+    * `conn` - the connection struct.
+
+  ## Returns
+    A tuple with the token and its signed version in the format `{token, signed_token}`
+  """
+  def get_token_tuple(conn) do
+    csrf_config = Application.get_env(:csrf_plus, CsrfPlus, [])
+
+    store =
+      Keyword.get(csrf_config, :store) ||
+        raise CsrfPlus.Exception, CsrfPlus.Exception.StoreException
+
+    access_id = get_session(conn, :access_id)
+
+    access =
+      store.get_access(access_id)
+
+    if access == nil do
+      CsrfPlus.Token.generate()
+    else
+      header_token = get_req_header(conn, "x-csrf-token") |> List.first()
+
+      case CsrfPlus.Token.verify(header_token) do
+        {:ok, signed} ->
+          {access.token, signed}
+
+        {:error, _} ->
+          signed = CsrfPlus.Token.sign_token(access.token)
+          {access.token, signed}
+      end
+    end
+  end
+
   defp allowed_method?(
          %Plug.Conn{method: method},
          %{allowed_methods: allowed_methods} = _opts
