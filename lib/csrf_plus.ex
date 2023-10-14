@@ -149,10 +149,10 @@ defmodule CsrfPlus do
 
     * `:access_id` - the id of the access. If none is given CsrfPlus will generate one.
     * `:token_tuple` - a tuple with the token and its signed version in the format `{token, signed_token}`. This option is required.
-    * `:excludes` - a list of tokens to exclude. A excluded token will not
+    * `:exclude` - a list of tokens to exclude. A excluded token will not
     be put into its corresponding store, session or header.
 
-  ### Excludes list
+  ### Exclude list
     * `:session` - do not put the session token.
     * `:header` - do not put the header token.
     * `:store` - do not put the store token.
@@ -168,10 +168,10 @@ defmodule CsrfPlus do
 
     {token, signed_token} = token_tuple
 
-    excludes = Keyword.get(opts, :excludes, [])
-    excludes_session_token? = Keyword.get(excludes, :session, false)
-    excludes_header_token? = Keyword.get(excludes, :header, false)
-    excludes_store_token? = Keyword.get(excludes, :store, false)
+    excludes = Keyword.get(opts, :exclude, [])
+    excludes_session_token? = Enum.find(excludes, nil, fn item -> item == :session end) != nil
+    excludes_header_token? = Enum.find(excludes, nil, fn item -> item == :header end) != nil
+    excludes_store_token? = Enum.find(excludes, nil, fn item -> item == :store end) != nil
 
     conn
     |> put_a_token_optional(access_id, token, :session, excludes_session_token?)

@@ -337,6 +337,96 @@ defmodule CsrfPlus.CsrfPlusTest do
 
       assert match?({:ok, ^token}, verify_result)
     end
+
+    test "if put_token/2 don't put the header token when :header is on the exclude list" do
+      Mox.stub(CsrfPlus.OptionalStoreMock, :put_access, fn access ->
+        Process.put(:store_access, access)
+      end)
+
+      Mox.stub(CsrfPlus.OptionalStoreMock, :get_access, fn _ -> Process.get(:store_access) end)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.OptionalStoreMock)
+      csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
+      Fixtures.token_config_fixture()
+
+      conn =
+        build_session_conn(:get)
+        |> Plug.Conn.fetch_session()
+        |> CsrfPlus.call(csrf_config)
+
+      {token, signed_token} = CsrfPlus.Token.generate()
+
+      new_conn = CsrfPlus.put_token(conn, token_tuple: {token, signed_token}, exclude: [:header])
+
+      conn_header_token = Plug.Conn.get_resp_header(new_conn, "x-csrf-token") |> List.first()
+
+      assert conn_header_token == nil
+
+      conn_session_token = Plug.Conn.get_session(new_conn, :csrf_token)
+      store_access = CsrfPlus.OptionalStoreMock.get_access(conn_session_token)
+
+      assert conn_session_token == token
+      assert store_access.token == token
+    end
+
+    test "if put_token/2 don't put the session id and token when :session is on the exclude list" do
+      Mox.stub(CsrfPlus.OptionalStoreMock, :put_access, fn access ->
+        Process.put(:store_access, access)
+      end)
+
+      Mox.stub(CsrfPlus.OptionalStoreMock, :get_access, fn _ -> Process.get(:store_access) end)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.OptionalStoreMock)
+      csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
+      Fixtures.token_config_fixture()
+
+      conn =
+        build_session_conn(:get)
+        |> Plug.Conn.fetch_session()
+        |> CsrfPlus.call(csrf_config)
+
+      {token, signed_token} = CsrfPlus.Token.generate()
+
+      new_conn = CsrfPlus.put_token(conn, token_tuple: {token, signed_token}, exclude: [:session])
+
+      header_token = Plug.Conn.get_resp_header(new_conn, "x-csrf-token") |> List.first()
+      session_token = Plug.Conn.get_session(new_conn, :csrf_token)
+      session_access_id = Plug.Conn.get_session(new_conn, :access_id)
+      store_access = CsrfPlus.OptionalStoreMock.get_access(session_token)
+
+      assert header_token == signed_token
+      assert session_token == nil
+      assert session_access_id == nil
+      assert store_access.token == token
+    end
+
+    test "if put_token/2 don't put the store token when :s is on the exclude list" do
+      Mox.stub(CsrfPlus.OptionalStoreMock, :put_access, fn access ->
+        Process.put(:store_access, access)
+      end)
+
+      Mox.stub(CsrfPlus.OptionalStoreMock, :get_access, fn _ -> Process.get(:store_access) end)
+      Application.put_env(:csrf_plus, CsrfPlus, store: CsrfPlus.OptionalStoreMock)
+      csrf_config = CsrfPlus.init(csrf_key: :csrf_token)
+      Fixtures.token_config_fixture()
+
+      conn =
+        build_session_conn(:get)
+        |> Plug.Conn.fetch_session()
+        |> CsrfPlus.call(csrf_config)
+
+      {token, signed_token} = CsrfPlus.Token.generate()
+
+      new_conn = CsrfPlus.put_token(conn, token_tuple: {token, signed_token}, exclude: [:store])
+
+      header_token = Plug.Conn.get_resp_header(new_conn, "x-csrf-token") |> List.first()
+      session_token = Plug.Conn.get_session(new_conn, :csrf_token)
+      session_access_id = Plug.Conn.get_session(new_conn, :access_id)
+      store_access = CsrfPlus.OptionalStoreMock.get_access(session_token)
+
+      assert header_token == signed_token
+      assert session_token == token
+      assert session_access_id != nil
+      assert store_access == nil
+    end
   end
 
   describe "CsrfPlus validations" do
