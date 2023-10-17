@@ -29,7 +29,7 @@ One of the princeples of this plug is to avoid the most to do "dark magic". As s
 provide an `:access_id` and normal token in the user session and, store both the token and the `access_id` in the
 configured store and, finally, include the signed token in the `x-csrf-token` header. Usually, you do this step in
 response to a GET method request, thinking of a JSON API. But you can also use this plug with heex template
-pages/components. Examples on that will be released soon.
+pages/components. More on the examples section.
 
 Anyway, we provide a helper function to get the tokens ready to be send in the response connection and stored
 in the configured store. This function is `CsrfPlus.put_token/2`. You will still need to generate, at least,
@@ -48,6 +48,16 @@ This `access_id` must be the same as the token in the session and the one in the
 will, when checking a request, retrieve the `access_id` from the session and then use it to load the token in the
 store. A found token with the given access id will be used later to test the tokens from session and `x-csrf-token`
 in the header.
+
+### Examples
+
+An example project that uses phoenix heex pages can be found [here](https://github.com/rogersanctus/csrf_phx_example).
+
+At the moment, LiveViews are not supported as they have a kind of hard coded validation through `Plug.CSRFProtection`. So if you want to
+use LiveViews you must follow the instructions at `Phoenix.LiveView` [docs](https://hexdocs.pm/phoenix_live_view/welcome.html).
+
+For an usage example on JSON Apis, check [recaptcha](https://github.com/rogersanctus/recaptcha) **(backend)** and
+[recaptcha-front](https://github.com/rogersanctus/recaptcha-front) **(frontend)**.
 
 ## How to install?
 Simply, add `:csrf_plus` to you mix dependencies:
